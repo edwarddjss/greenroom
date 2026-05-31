@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# Spotify OAuth credential store (contains access/refresh tokens)
+spotify-auth.json
+
+# Audio diagnostic test output
+capture-test.wav
+
+# OS artifacts
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Local memory store
+memory.json
+
