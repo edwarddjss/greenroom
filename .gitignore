@@ -34,3 +34,6 @@ Thumbs.db
 # Local memory store
 memory.json
 .gstack/
+
+# Bundled Windows ffmpeg (134MB, fetched at build time / provided locally)
+apps/desktop/resources/bin/*.exe
