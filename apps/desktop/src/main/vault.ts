@@ -1,9 +1,9 @@
-import { safeStorage } from 'electron';
+import { app, safeStorage } from 'electron';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import initSqlJs, { type Database } from 'sql.js';
+import type { Database } from 'sql.js';
 import { EngineCredentials, type CredsStatus } from '@greenroom/shared';
 import { dataDir } from './paths';
 
@@ -95,9 +95,12 @@ function migrateLegacyFiles(): void {
 
 export async function initVault(): Promise<void> {
   if (db) return;
-  const SQL = await initSqlJs({
-    locateFile: (file) => (file === 'sql-wasm.wasm' ? require.resolve('sql.js/dist/sql-wasm.wasm') : file),
-  });
+  const initSqlJs = require('sql.js') as typeof import('sql.js').default;
+  const wasmPath = app.isPackaged
+    ? join(process.resourcesPath, 'sql-wasm.wasm')
+    : require.resolve('sql.js/dist/sql-wasm.wasm');
+  const wasmBinary = Uint8Array.from(fs.readFileSync(wasmPath)).buffer;
+  const SQL = await initSqlJs({ wasmBinary });
   if (!fs.existsSync(dbFile())) {
     const legacyDb = legacyDbFiles().find((file) => fs.existsSync(file));
     if (legacyDb) fs.copyFileSync(legacyDb, dbFile());
