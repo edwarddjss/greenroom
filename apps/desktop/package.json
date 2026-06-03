@@ -37,7 +37,7 @@
           ]
         }
       ],
-      "artifactName": "greenroom-${version}-${arch}-Setup.${ext}"
+      "artifactName": "greenroom-Setup-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,

@@ -17,7 +17,7 @@ newest release.
    the `v*` tag: it installs deps, downloads ffmpeg, builds, and runs
    `electron-builder --publish always`. When it finishes, a public Release
    `v0.1.1` exists with:
-   - `greenroom-0.1.1-x64-Setup.exe` — the NSIS installer
+   - `greenroom-Setup-x64.exe` — the NSIS installer
    - `latest.yml` + blockmap — the electron-updater feed
 
 The tag version must match `package.json`'s `version`, or electron-builder will
