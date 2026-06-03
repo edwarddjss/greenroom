@@ -6,368 +6,367 @@
     <title>greenroom — stream your Spotify into any Discord voice channel</title>
     <meta
       name="description"
-      content="greenroom is a self-hosted Spotify-to-Discord music bot that runs on your own Windows PC. Download the desktop app and stream your own Spotify into any voice channel."
+      content="greenroom is a self-hosted Windows desktop app that streams your own Spotify audio into a Discord voice channel. Runs on your PC; nothing routes through a third-party server."
     />
     <link rel="canonical" href="https://edwarddjss.github.io/spotify-discord-bot/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="greenroom" />
     <meta property="og:description" content="Stream your Spotify into any Discord voice channel. Self-hosted, runs on your own PC." />
     <meta name="theme-color" content="#0A0A0C" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231FA877'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2304140D'/%3E%3C/svg%3E"
-    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <style>
       :root {
         --bg: #0a0a0c;
-        --surface: #15151b;
-        --raised: #1d1d25;
-        --sunken: #0e0e13;
+        --c-low: #0f0f12;
+        --c: #121214;
+        --c-high: #1c1c1f;
+        --line: #27272a;
+        --line-strong: #3f3f46;
         --text: #f3f3f5;
-        --muted: #9a9aa8;
-        --line: rgba(255, 255, 255, 0.08);
-        --line-strong: rgba(255, 255, 255, 0.14);
-        --accent: #1fa877;
-        --accent-hover: #27c089;
-        --spotify: #1db954;
-        --discord: #5865f2;
-        --maxw: 1080px;
+        --muted: #a1a1aa;
+        --primary: #1fa877;
+        --primary-ink: #04140d;
+        --max: 1200px;
+        --pad: 40px;
       }
-
       * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
       }
-
       html {
         scroll-behavior: smooth;
       }
-
       body {
         background: var(--bg);
         color: var(--text);
-        font-family: Inter, system-ui, -apple-system, sans-serif;
-        line-height: 1.55;
+        font-family: Inter, system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
         -webkit-font-smoothing: antialiased;
-        font-feature-settings: 'cv01', 'ss01';
-        /* A single, very soft emerald glow up top — not a purple slop gradient. */
-        background-image: radial-gradient(60rem 30rem at 50% -12rem, rgba(31, 168, 119, 0.12), transparent 70%);
-        background-repeat: no-repeat;
       }
-
       a {
         color: inherit;
         text-decoration: none;
       }
-
       .wrap {
-        max-width: var(--maxw);
+        max-width: var(--max);
         margin: 0 auto;
-        padding: 0 24px;
+        padding: 0 var(--pad);
+      }
+      .mono {
+        font-family: 'Geist Mono', ui-monospace, monospace;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
       }
 
-      /* ---- nav ---- */
+      /* nav */
       header {
         position: sticky;
         top: 0;
-        z-index: 10;
-        backdrop-filter: blur(10px);
-        background: rgba(10, 10, 12, 0.72);
+        z-index: 50;
+        background: var(--bg);
         border-bottom: 1px solid var(--line);
       }
       nav {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        height: 60px;
+        height: 64px;
       }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+      .wordmark {
         font-weight: 600;
-        letter-spacing: -0.01em;
+        font-size: 18px;
+        letter-spacing: -0.03em;
       }
-      .mark {
-        display: grid;
-        place-items: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 8px;
-        background: rgba(31, 168, 119, 0.16);
-        border: 1px solid rgba(31, 168, 119, 0.32);
-      }
-      .mark span {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: var(--accent);
-      }
-      .nav-links {
+      .nav-right {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 24px;
+      }
+      .nav-right a.muted {
+        color: var(--muted);
+        font-size: 14px;
+        transition: color 0.15s;
+      }
+      .nav-right a.muted:hover {
+        color: var(--text);
       }
 
-      /* ---- buttons ---- */
+      /* buttons */
       .btn {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        height: 40px;
-        padding: 0 18px;
-        border-radius: 10px;
+        font-weight: 500;
         font-size: 14px;
-        font-weight: 600;
+        border-radius: 4px;
         border: 1px solid transparent;
-        transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+        padding: 8px 16px;
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
         white-space: nowrap;
       }
-      .btn:active {
-        transform: translateY(1px);
-      }
       .btn-primary {
-        background: var(--accent);
-        color: #04140d;
+        background: var(--primary);
+        color: var(--primary-ink);
+        font-weight: 600;
       }
       .btn-primary:hover {
-        background: var(--accent-hover);
+        background: #27c089;
       }
-      .btn-ghost {
-        background: rgba(255, 255, 255, 0.04);
+      .btn-secondary {
         border-color: var(--line);
+        color: var(--muted);
+      }
+      .btn-secondary:hover {
+        border-color: var(--line-strong);
         color: var(--text);
       }
-      .btn-ghost:hover {
-        background: rgba(255, 255, 255, 0.08);
-      }
       .btn-lg {
-        height: 48px;
-        padding: 0 24px;
+        padding: 13px 22px;
         font-size: 15px;
-        border-radius: 12px;
       }
 
-      /* ---- hero ---- */
+      /* hero */
       .hero {
-        padding: 96px 0 72px;
-      }
-      .eyebrow {
-        display: inline-flex;
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 56px;
         align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: var(--muted);
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 5px 12px;
-        border-radius: 999px;
-        margin-bottom: 24px;
+        padding: 96px 0 80px;
       }
-      .dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: var(--accent);
-        box-shadow: 0 0 0 3px rgba(31, 168, 119, 0.2);
+      .hero h1 {
+        font-size: clamp(2.3rem, 5vw, 3rem);
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        max-width: 14ch;
       }
-      h1 {
-        font-size: clamp(2.4rem, 6vw, 4rem);
-        line-height: 1.04;
-        letter-spacing: -0.035em;
-        font-weight: 700;
-        max-width: 16ch;
-      }
-      h1 .accent {
-        color: var(--accent);
-      }
-      .lede {
+      .hero p.sub {
         margin-top: 22px;
-        font-size: clamp(1.05rem, 2.2vw, 1.25rem);
         color: var(--muted);
-        max-width: 56ch;
+        font-size: 1.0625rem;
+        max-width: 46ch;
       }
-      .cta {
+      .hero-actions {
         margin-top: 36px;
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        align-items: center;
       }
-      .meta {
-        margin-top: 18px;
-        font-size: 13px;
-        color: var(--muted);
+      .facts {
+        margin-top: 44px;
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 16px;
+        gap: 28px;
+        padding: 16px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
       }
-      .meta b {
-        color: var(--text);
-        font-weight: 500;
+      .fact {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+      }
+      .fact::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        background: var(--primary);
+        flex: none;
       }
 
-      /* ---- sections ---- */
+      /* product shot */
+      .shot {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--c-high);
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      /* section scaffolding */
       section.band {
-        padding: 64px 0;
         border-top: 1px solid var(--line);
       }
       .kicker {
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--accent);
-        margin-bottom: 14px;
-      }
-      h2 {
-        font-size: clamp(1.6rem, 3.5vw, 2.1rem);
-        letter-spacing: -0.025em;
-        font-weight: 700;
-        max-width: 20ch;
-      }
-      .two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 56px;
-        align-items: start;
-      }
-      .two-col p.body {
         color: var(--muted);
-        font-size: 1.02rem;
-        margin-top: 16px;
-        max-width: 46ch;
+      }
+      h2.section-title {
+        font-size: clamp(1.6rem, 3vw, 2rem);
+        letter-spacing: -0.03em;
+      }
+
+      /* feature cells */
+      .features {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        padding: 80px 0;
+      }
+      .cell {
+        border: 1px solid var(--line);
+        padding: 28px 24px;
+        transition: background-color 0.15s;
+      }
+      .cell:hover {
+        background: var(--c-low);
+      }
+      .cell .num {
+        color: var(--muted);
+        margin-bottom: 18px;
+      }
+      .cell h3 {
+        font-size: 18px;
+        color: var(--primary);
+        margin-bottom: 8px;
+      }
+      .cell p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      /* setup band */
+      .setup {
+        background: var(--c-low);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 80px 0;
+      }
+      .setup h2 {
+        margin-bottom: 48px;
       }
       .steps {
         display: grid;
-        gap: 14px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 40px;
       }
-      .step {
-        display: flex;
-        gap: 16px;
-        padding: 16px 18px;
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 14px;
+      .step .num {
+        color: var(--primary);
+        margin-bottom: 20px;
+        display: block;
       }
-      .step .n {
-        flex: none;
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        display: grid;
-        place-items: center;
-        background: rgba(31, 168, 119, 0.14);
-        color: var(--accent);
-        font-weight: 600;
-        font-size: 14px;
+      .step .rule {
+        height: 1px;
+        background: var(--line-strong);
+        margin-bottom: 20px;
       }
-      .step h3 {
-        font-size: 15px;
-        font-weight: 600;
+      .step h4 {
+        font-size: 16px;
+        margin-bottom: 8px;
       }
       .step p {
-        font-size: 14px;
         color: var(--muted);
-        margin-top: 2px;
-      }
-      .step code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 12.5px;
-        background: var(--sunken);
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 1px 6px;
-        color: var(--text);
-      }
-
-      /* feature rows — text-led, no icon-in-circle slop grid */
-      .features {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1px;
-        background: var(--line);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        overflow: hidden;
-        margin-top: 36px;
-      }
-      .feature {
-        background: var(--bg);
-        padding: 26px 24px;
-      }
-      .feature h3 {
-        font-size: 15px;
-        font-weight: 600;
-      }
-      .feature p {
-        margin-top: 9px;
         font-size: 14px;
+        line-height: 1.55;
+      }
+
+      /* final cta */
+      .cta-band {
+        padding: 96px 0;
+      }
+      .cta-box {
+        border: 1px solid var(--line);
+        background: var(--c);
+        padding: 56px 48px;
+      }
+      .cta-box h2 {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        letter-spacing: -0.04em;
+      }
+      .cta-box p {
         color: var(--muted);
+        margin: 18px 0 32px;
+        max-width: 42ch;
       }
 
-      /* download band */
-      .download {
-        text-align: center;
-        background: linear-gradient(180deg, rgba(31, 168, 119, 0.08), transparent);
-      }
-      .download h2 {
-        margin: 0 auto;
-      }
-      .download .cta {
-        justify-content: center;
-      }
-      .download .meta {
-        justify-content: center;
-      }
-
+      /* footer */
       footer {
         border-top: 1px solid var(--line);
-        padding: 36px 0 56px;
+        padding: 40px 0;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      .foot .disclaimer {
         color: var(--muted);
         font-size: 13px;
+        max-width: 34ch;
+        margin-top: 12px;
       }
-      .foot-row {
+      .foot-right {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: flex-end;
         gap: 16px;
-        align-items: center;
-        justify-content: space-between;
       }
       .foot-links {
         display: flex;
-        gap: 18px;
+        gap: 28px;
+      }
+      .foot-links a {
+        color: var(--muted);
+        transition: color 0.15s;
       }
       .foot-links a:hover {
         color: var(--text);
       }
-      .disclaimer {
-        margin-top: 18px;
-        font-size: 12px;
-        color: rgba(154, 154, 168, 0.7);
-        max-width: 60ch;
-      }
 
-      @media (max-width: 760px) {
-        .two-col {
+      @media (max-width: 900px) {
+        :root {
+          --pad: 20px;
+        }
+        .hero {
           grid-template-columns: 1fr;
+          gap: 40px;
+          padding: 56px 0;
+        }
+        .features {
+          grid-template-columns: repeat(2, 1fr);
+          padding: 56px 0;
+        }
+        .steps {
+          grid-template-columns: repeat(2, 1fr);
           gap: 32px;
         }
+        .foot {
+          flex-direction: column;
+        }
+        .foot-right {
+          align-items: flex-start;
+        }
+      }
+      @media (max-width: 560px) {
         .features {
           grid-template-columns: 1fr;
         }
-        .nav-links .btn-ghost {
-          display: none;
+        .steps {
+          grid-template-columns: 1fr;
         }
-        .hero {
-          padding: 64px 0 48px;
+        .nav-right a.muted {
+          display: none;
         }
       }
     </style>
@@ -376,12 +375,10 @@
     <header>
       <div class="wrap">
         <nav>
-          <a class="brand" href="#top">
-            <span class="mark"><span></span></span>
-            greenroom
-          </a>
-          <div class="nav-links">
-            <a class="btn btn-ghost" href="https://github.com/edwarddjss/spotify-discord-bot">GitHub</a>
+          <a class="wordmark" href="#top">greenroom</a>
+          <div class="nav-right">
+            <a class="muted" href="#setup">How it works</a>
+            <a class="muted" href="https://github.com/edwarddjss/spotify-discord-bot">GitHub</a>
             <a class="btn btn-primary" href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest/download/greenroom-Setup-x64.exe">Download</a>
           </div>
         </nav>
@@ -389,134 +386,110 @@
     </header>
 
     <main id="top">
-      <section class="hero">
-        <div class="wrap">
-          <span class="eyebrow"><span class="dot"></span> Self-hosted · runs on your own PC</span>
-          <h1>Stream your Spotify into <span class="accent">any Discord</span> voice channel.</h1>
-          <p class="lede">
-            greenroom captures your Spotify audio on your own PC and streams it into a Discord voice channel.
-            Install it, link Spotify once, then use <code>/play</code>.
+      <section class="wrap hero">
+        <div>
+          <h1>Stream your Spotify into any Discord voice channel.</h1>
+          <p class="sub">
+            A self-hosted desktop app that streams your own Spotify audio straight into a Discord voice channel. It
+            runs on your PC, and nothing routes through a third-party server.
           </p>
-          <div class="cta">
+          <div class="hero-actions">
             <a class="btn btn-primary btn-lg" href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest/download/greenroom-Setup-x64.exe">
               Download for Windows
             </a>
-            <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
+            <a class="btn btn-secondary btn-lg" href="#setup">How it works</a>
           </div>
-          <div class="meta">
-            <span><b>Windows 10/11</b></span>
-            <span>Spotify <b>Premium</b></span>
-            <span><b>~10 min</b> setup</span>
-            <span>Free &amp; <b>open source</b></span>
+          <div class="facts mono">
+            <span class="fact">Windows 10/11</span>
+            <span class="fact">Spotify Premium</span>
+            <span class="fact">Open source</span>
           </div>
+        </div>
+        <div class="shot">
+          <img src="app.png" alt="The greenroom desktop app: a running bot streaming Spotify with a status sidebar and activity log." width="1120" height="740" />
         </div>
       </section>
 
-      <section class="band" id="how">
-        <div class="wrap two-col">
-          <div>
-            <div class="kicker">How it works</div>
-            <h2>What setup looks like.</h2>
-            <p class="body">
-              greenroom routes Spotify through a virtual audio cable and streams it into the voice channel the bot
-              joins. The audio stays on your machine until it reaches the channel — nothing passes through a
-              third-party server.
-            </p>
-          </div>
+      <section class="wrap features">
+        <div class="cell">
+          <div class="num mono">01</div>
+          <h3>Self-hosted</h3>
+          <p>The bot runs from your PC. Your Spotify account and the audio never reach a third-party server.</p>
+        </div>
+        <div class="cell">
+          <div class="num mono">02</div>
+          <h3>Real Spotify audio</h3>
+          <p>It streams exactly what plays on your desktop, including your own queue and library.</p>
+        </div>
+        <div class="cell">
+          <div class="num mono">03</div>
+          <h3>Plain-language commands</h3>
+          <p>A bundled local model parses requests, so commands don't depend on exact syntax.</p>
+        </div>
+        <div class="cell">
+          <div class="num mono">04</div>
+          <h3>Open source</h3>
+          <p>The full source is on GitHub. Installers are published from it on every tagged release.</p>
+        </div>
+      </section>
+
+      <section class="setup" id="setup">
+        <div class="wrap">
+          <h2 class="section-title">Setup, start to finish.</h2>
           <div class="steps">
             <div class="step">
-              <div class="n">1</div>
-              <div>
-                <h3>Install greenroom</h3>
-                <p>Download and run the Windows installer. A guided setup walks you through everything else.</p>
-              </div>
+              <span class="num mono">01</span>
+              <div class="rule"></div>
+              <h4>Install greenroom</h4>
+              <p>Download and run the Windows installer. A guided setup handles the rest.</p>
             </div>
             <div class="step">
-              <div class="n">2</div>
-              <div>
-                <h3>Connect Discord &amp; Spotify</h3>
-                <p>Paste your bot token and Spotify keys. Built-in video guides show each click.</p>
-              </div>
+              <span class="num mono">02</span>
+              <div class="rule"></div>
+              <h4>Connect Discord &amp; Spotify</h4>
+              <p>Paste your bot token and Spotify keys. Built-in video guides walk through each portal.</p>
             </div>
             <div class="step">
-              <div class="n">3</div>
-              <div>
-                <h3>Invite the bot &amp; link Spotify</h3>
-                <p>Run <code>/login</code> in Discord to link your Spotify account once.</p>
-              </div>
+              <span class="num mono">03</span>
+              <div class="rule"></div>
+              <h4>Invite the bot &amp; link</h4>
+              <p>Invite the bot to your server, then run /login to link Spotify once.</p>
             </div>
             <div class="step">
-              <div class="n">4</div>
-              <div>
-                <h3>Play</h3>
-                <p>Run <code>/play</code> with a song, playlist, or Spotify link. The channel hears it live.</p>
-              </div>
+              <span class="num mono">04</span>
+              <div class="rule"></div>
+              <h4>Run /play</h4>
+              <p>Join a voice channel and run /play with a song, playlist, or Spotify link.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="band">
-        <div class="wrap">
-          <div class="kicker">Details</div>
-          <h2>No server in the middle.</h2>
-          <div class="features">
-            <div class="feature">
-              <h3>Self-hosted</h3>
-              <p>The bot runs from your PC. Your Spotify account and the audio never reach a third-party server.</p>
-            </div>
-            <div class="feature">
-              <h3>Real Spotify audio</h3>
-              <p>It streams what actually plays on your desktop, including your own queue and library.</p>
-            </div>
-            <div class="feature">
-              <h3>Plain-language commands</h3>
-              <p>A bundled local model parses requests, so commands don't depend on exact syntax.</p>
-            </div>
-            <div class="feature">
-              <h3>Open source</h3>
-              <p>The full source is on GitHub. Builds are published from it on every tagged release.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="band download">
-        <div class="wrap">
-          <div class="kicker">Get started</div>
-          <h2>Download greenroom for Windows.</h2>
-          <div class="cta">
-            <a class="btn btn-primary btn-lg" href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest/download/greenroom-Setup-x64.exe">
-              Download the installer
-            </a>
-            <a class="btn btn-ghost btn-lg" href="https://github.com/edwarddjss/spotify-discord-bot">View source</a>
-          </div>
-          <div class="meta">
-            <span><b>greenroom-Setup-x64.exe</b></span>
-            <span>Windows 10/11 · 64-bit</span>
-            <span>Unsigned build — Windows may show a SmartScreen prompt</span>
-          </div>
+      <section class="wrap cta-band">
+        <div class="cta-box">
+          <h2>Download greenroom.</h2>
+          <p>Free and open source. Windows 10/11, 64-bit. The build is unsigned, so Windows may show a SmartScreen prompt on first run.</p>
+          <a class="btn btn-primary btn-lg" href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest/download/greenroom-Setup-x64.exe">
+            Download for Windows
+          </a>
         </div>
       </section>
     </main>
 
     <footer>
-      <div class="wrap">
-        <div class="foot-row">
-          <div class="brand">
-            <span class="mark"><span></span></span>
-            greenroom
-          </div>
-          <div class="foot-links">
+      <div class="wrap foot">
+        <div>
+          <div class="wordmark">greenroom</div>
+          <p class="disclaimer">Not affiliated with, endorsed by, or sponsored by Spotify or Discord.</p>
+        </div>
+        <div class="foot-right">
+          <div class="foot-links mono">
             <a href="https://github.com/edwarddjss/spotify-discord-bot">GitHub</a>
             <a href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest">Releases</a>
-            <a href="https://github.com/edwarddjss/spotify-discord-bot/issues">Report an issue</a>
+            <a href="https://github.com/edwarddjss/spotify-discord-bot/issues">Issues</a>
           </div>
+          <div class="mono" style="color: var(--muted)">Open source on GitHub</div>
         </div>
-        <p class="disclaimer">
-          greenroom is an independent open-source project. Not affiliated with, endorsed by, or sponsored by Spotify or
-          Discord. You run it on your own hardware with your own accounts.
-        </p>
       </div>
     </footer>
   </body>
