@@ -1,0 +1,61 @@
+name: Release desktop app
+
+# Build the Windows installer on a native Windows runner (no wine) and publish
+# it — plus the electron-updater feed — to a GitHub Release. Trigger by pushing
+# a version tag that matches package.json, e.g. `git tag v0.1.0 && git push --tags`.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Fetch bundled ffmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dest = 'apps/desktop/resources/bin'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $zip = "$env:RUNNER_TEMP\ffmpeg.zip"
+          Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath "$env:RUNNER_TEMP\ffmpeg" -Force
+          $exe = Get-ChildItem -Path "$env:RUNNER_TEMP\ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $exe) { throw 'ffmpeg.exe not found in archive' }
+          Copy-Item $exe.FullName -Destination "$dest\ffmpeg.exe" -Force
+          Write-Host "ffmpeg ready at $dest\ffmpeg.exe"
+
+      - name: Build renderer/main/preload
+        run: pnpm --filter @greenroom/desktop run build
+
+      - name: Package installer and publish to Releases
+        run: pnpm --filter @greenroom/desktop exec electron-builder --win nsis --x64 --publish always
+        env:
+          # electron-builder reads GH_TOKEN to create/upload the GitHub Release.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
