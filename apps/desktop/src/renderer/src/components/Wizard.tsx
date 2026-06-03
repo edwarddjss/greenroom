@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus } from '@greenroom/shared';
+import type { DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { EMPTY_PREREQS, botInviteUrl } from '@greenroom/shared';
 import { Copy, ExternalLink, PlayCircle, X } from 'lucide-react';
 import { api } from '../lib/api';
@@ -7,6 +7,7 @@ import { Button, Card, Code, Field, Modal, Pill, ProgressBar } from './ui';
 
 type StepId = 'welcome' | 'vbcable' | 'routing' | 'discord' | 'spotify' | 'commands' | 'invite' | 'model' | 'finish';
 const ORDER: StepId[] = ['welcome', 'vbcable', 'routing', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
+const WIZARD_STEP_KEY = 'greenroom:onboarding-step';
 const TITLES: Record<StepId, string> = {
   welcome: 'Welcome',
   vbcable: 'Audio cable',
@@ -94,11 +95,16 @@ const GUIDES: Record<GuideId, Guide> = {
 };
 
 export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(() => {
+    const saved = Number.parseInt(localStorage.getItem(WIZARD_STEP_KEY) ?? '', 10);
+    return Number.isInteger(saved) && saved >= 0 && saved < ORDER.length ? saved : 0;
+  });
   const step = ORDER[stepIdx] ?? 'welcome';
 
   const [prereqs, setPrereqs] = useState<PrereqReport>(EMPTY_PREREQS);
   const [scanning, setScanning] = useState(false);
+  const [installingCable, setInstallingCable] = useState(false);
+  const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
 
   const [discordToken, setDiscordToken] = useState('');
   const [discordClientId, setDiscordClientId] = useState('');
@@ -130,6 +136,22 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
     void scan();
     void api.tunnelStatus().then(setTunnel);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(WIZARD_STEP_KEY, String(stepIdx));
+  }, [stepIdx]);
+
+  const installCable = async (): Promise<void> => {
+    setInstallingCable(true);
+    setCableInstallResult(null);
+    try {
+      const result = await api.vbcableInstall();
+      setCableInstallResult(result);
+      await scan();
+    } finally {
+      setInstallingCable(false);
+    }
+  };
 
   // Debounced Discord validation.
   useEffect(() => {
@@ -188,6 +210,10 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
   const next = (): void => {
     if (!canNext) return;
+    if (step === 'welcome' && prereqs.ffmpeg.status === 'ok' && prereqs.vbcable.status === 'ok') {
+      setStepIdx(ORDER.indexOf('routing'));
+      return;
+    }
     setStepIdx((i) => Math.min(ORDER.length - 1, i + 1));
   };
   const back = (): void => setStepIdx((i) => Math.max(0, i - 1));
@@ -236,10 +262,17 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
                 <PlayCircle size={16} strokeWidth={2.1} aria-hidden="true" />
                 Show guide
               </Button>
-              <Button variant="ghost" onClick={() => void api.vbcableInstall()}>Install / download</Button>
+              {prereqs.vbcable.status !== 'ok' && (
+                <Button disabled={installingCable} onClick={() => void installCable()}>
+                  {installingCable ? 'Installing…' : 'Install VB-Cable'}
+                </Button>
+              )}
               <Button variant="ghost" disabled={scanning} onClick={() => void scan()}>{scanning ? 'Scanning…' : 'Re-check'}</Button>
             </div>
-            <p className="text-muted text-xs">Installing VB-Cable needs admin rights and a reboot. After rebooting, reopen greenroom and we'll resume here.</p>
+            {cableInstallResult && (
+              <p className={`text-xs ${cableInstallResult.ok ? 'text-accent' : 'text-danger'}`}>{cableInstallResult.message}</p>
+            )}
+            <p className="text-muted text-xs">greenroom downloads and extracts the official driver for you. Approve the Windows admin prompt, click Install, then restart Windows. Setup resumes here after reboot.</p>
           </div>
         )}
 
@@ -376,7 +409,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
       <div className="flex justify-between">
         <Button variant="ghost" onClick={back} disabled={stepIdx === 0}>Back</Button>
         {step === 'finish' ? (
-          <Button onClick={() => { void api.engineStart(); onDone(); }}>Go to dashboard</Button>
+          <Button onClick={() => { localStorage.removeItem(WIZARD_STEP_KEY); void api.engineStart(); onDone(); }}>Go to dashboard</Button>
         ) : (
           <Button onClick={next} disabled={!canNext}>Next</Button>
         )}

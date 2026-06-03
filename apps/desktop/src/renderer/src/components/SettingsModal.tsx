@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus } from '@greenroom/shared';
+import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { Button, Code, Field, Modal, Pill, SectionHeader } from './ui';
@@ -39,6 +39,8 @@ export function SettingsModal({
   const [toast, setToast] = useState<{ tone: 'ok' | 'bad'; message: string } | null>(null);
   const [credsSummary, setCredsSummary] = useState<string>('Loading...');
   const [credsStatus, setCredsStatus] = useState<CredsStatus | null>(null);
+  const [installingCable, setInstallingCable] = useState(false);
+  const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
 
   useEffect(() => {
     void api.tunnelStatus().then(setTunnel);
@@ -92,6 +94,18 @@ export function SettingsModal({
     setBusy('scan');
     onPrereqs(await api.prereqsScan());
     setBusy(null);
+  };
+
+  const installCable = async (): Promise<void> => {
+    setInstallingCable(true);
+    setCableInstallResult(null);
+    try {
+      const result = await api.vbcableInstall();
+      setCableInstallResult(result);
+      onPrereqs(await api.prereqsScan());
+    } finally {
+      setInstallingCable(false);
+    }
   };
 
   const registerCommands = async (): Promise<void> => {
@@ -165,7 +179,12 @@ export function SettingsModal({
               <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm">
                 <div className="font-semibold text-danger">VB-Cable issue detected</div>
                 <div className="mt-1 text-muted">{prereqs.vbcable.detail ?? 'VB-Audio Virtual Cable was not detected.'}</div>
-                <Button className="mt-3" variant="ghost" onClick={() => void api.vbcableInstall()}>Run VB-Cable installer</Button>
+                <Button className="mt-3" variant="ghost" disabled={installingCable} onClick={() => void installCable()}>
+                  {installingCable ? 'Installing…' : 'Install VB-Cable'}
+                </Button>
+                {cableInstallResult && (
+                  <p className={`mt-2 text-xs ${cableInstallResult.ok ? 'text-accent' : 'text-danger'}`}>{cableInstallResult.message}</p>
+                )}
               </div>
             )}
             <div className="rounded-lg border border-line bg-sunken p-3 text-sm">

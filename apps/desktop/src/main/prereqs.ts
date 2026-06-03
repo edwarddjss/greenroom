@@ -57,16 +57,27 @@ async function checkVbCable(): Promise<PrereqState> {
   if (process.platform !== 'win32') {
     return { status: 'unknown', confidence: 'not-verifiable', detail: 'VB-Cable detection only runs on Windows.' };
   }
-  // FFmpeg lists DirectShow devices on stderr and exits non-zero; that's expected.
-  const res = await run(ffmpegPath(), ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy']);
-  const haystack = `${res.stderr}\n${res.stdout}`;
+  const [ffmpeg, windowsDevices] = await Promise.all([
+    // FFmpeg lists DirectShow devices on stderr and exits non-zero; that's expected.
+    run(ffmpegPath(), ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy']),
+    run(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-Command',
+        "$names=@(); $names += Get-CimInstance Win32_SoundDevice -ErrorAction SilentlyContinue | ForEach-Object Name; $names += Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | ForEach-Object FriendlyName; $names | Where-Object { $_ }",
+      ],
+      12_000,
+    ),
+  ]);
+  const haystack = `${ffmpeg.stderr}\n${ffmpeg.stdout}\n${windowsDevices.stdout}\n${windowsDevices.stderr}`;
   if (haystack.includes(VBCABLE_DEVICE)) {
     return { status: 'ok', confidence: 'verified', detail: VBCABLE_DEVICE };
   }
-  if (/CABLE Output/i.test(haystack)) {
-    return { status: 'ok', confidence: 'verified', detail: 'VB-Cable variant detected (non-default name).' };
+  if (/VB-Audio Virtual Cable|VB-CABLE|CABLE (Input|Output)/i.test(haystack)) {
+    return { status: 'ok', confidence: 'verified', detail: 'VB-Audio Virtual Cable detected.' };
   }
-  return { status: 'missing', confidence: 'verified', detail: 'VB-Audio Virtual Cable not detected.' };
+  return { status: 'missing', confidence: 'verified', detail: 'VB-Cable is not installed yet.' };
 }
 
 async function checkSpotify(): Promise<PrereqState> {

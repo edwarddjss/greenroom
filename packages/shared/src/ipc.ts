@@ -70,6 +70,14 @@ export interface ModelDownloadProgress {
   totalBytes: number | null;
 }
 
+export interface VbCableInstallResult {
+  ok: boolean;
+  launched: boolean;
+  rebootRequired: boolean;
+  message: string;
+  error?: string;
+}
+
 /** Full supervisor snapshot streamed to the renderer dashboard. */
 export interface EngineSnapshot {
   state: EngineState;
@@ -91,7 +99,7 @@ export interface GreenroomIpcApi {
   engineRestart(): Promise<EngineSnapshot>;
   engineGetSnapshot(): Promise<EngineSnapshot>;
   prereqsScan(): Promise<PrereqReport>;
-  vbcableInstall(): Promise<{ launched: boolean }>;
+  vbcableInstall(): Promise<VbCableInstallResult>;
   credsSave(creds: Partial<EngineCredentials>): Promise<{ ok: boolean }>;
   credsStatus(): Promise<CredsStatus>;
   validateDiscord(token: string, clientId: string): Promise<DiscordValidation>;

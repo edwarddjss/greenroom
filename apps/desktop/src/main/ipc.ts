@@ -1,5 +1,4 @@
 import { ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { join, dirname } from 'node:path';
 import {
@@ -14,9 +13,10 @@ import { scanPrereqs } from './prereqs';
 import { validateDiscord, validateSpotify } from './validators';
 import { loadCreds, saveCreds, credsStatus } from './vault';
 import { ensureModel, isModelPresent } from './model';
-import { dataDir, ffmpegPath, engineEntry, vbcableInstaller } from './paths';
+import { dataDir, ffmpegPath, engineEntry } from './paths';
 import { buildEngineEnv } from './engine-env';
 import { tunnelManager } from './tunnel';
+import { installVbCable } from './vbcable';
 
 type WinGetter = () => BrowserWindow | null;
 
@@ -25,19 +25,6 @@ export function createSupervisor(getWin: WinGetter): Supervisor {
     onState: (snapshot) => getWin()?.webContents.send(IPC_EVENT.engineState, snapshot),
     onLog: (lines) => getWin()?.webContents.send(IPC_EVENT.engineLog, lines),
   });
-}
-
-function installVbCable(): { launched: boolean } {
-  const installer = vbcableInstaller();
-  if (!installer || !fs.existsSync(installer)) return { launched: false };
-  if (process.platform === 'win32') {
-    spawn('powershell', ['-Command', `Start-Process -FilePath "${installer}" -Verb RunAs`], {
-      windowsHide: true,
-      detached: true,
-    }).unref();
-    return { launched: true };
-  }
-  return { launched: false };
 }
 
 function registerCommands(): Promise<CommandRegisterResult> {
@@ -111,7 +98,13 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     return report;
   });
 
-  ipcMain.handle(IPC.vbcableInstall, () => installVbCable());
+  ipcMain.handle(IPC.vbcableInstall, async () => {
+    const result = await installVbCable();
+    const report = await scanPrereqs();
+    supervisor.setPrereqs(report);
+    getWin()?.webContents.send(IPC_EVENT.prereqs, report);
+    return result;
+  });
   ipcMain.handle(IPC.credsSave, (_e, creds: Partial<Creds>) => {
     saveCreds(creds);
     return { ok: true };

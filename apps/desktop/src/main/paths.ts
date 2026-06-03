@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
 
@@ -20,10 +21,18 @@ export function modelPath(): string {
 
 /** Bundled FFmpeg in production (set via env at packaging); PATH in dev. */
 export function ffmpegPath(): string {
-  return process.env.GREENROOM_FFMPEG ?? process.env.SPOTICORD_FFMPEG ?? process.env.SONICORD_FFMPEG ?? 'ffmpeg';
+  const override = process.env.GREENROOM_FFMPEG ?? process.env.SPOTICORD_FFMPEG ?? process.env.SONICORD_FFMPEG;
+  if (override) return override;
+  const bundled = join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+  if (app.isPackaged && fs.existsSync(bundled)) return bundled;
+  return 'ffmpeg';
 }
 
 /** Bundled VB-Cable installer path, shipped under resources in production. */
 export function vbcableInstaller(): string | null {
-  return process.env.GREENROOM_VBCABLE_INSTALLER ?? process.env.SPOTICORD_VBCABLE_INSTALLER ?? process.env.SONICORD_VBCABLE_INSTALLER ?? null;
+  const override = process.env.GREENROOM_VBCABLE_INSTALLER ?? process.env.SPOTICORD_VBCABLE_INSTALLER ?? process.env.SONICORD_VBCABLE_INSTALLER;
+  if (override) return override;
+  const bundled = join(process.resourcesPath, 'drivers', 'VBCABLE_Setup_x64.exe');
+  if (app.isPackaged && fs.existsSync(bundled)) return bundled;
+  return null;
 }
