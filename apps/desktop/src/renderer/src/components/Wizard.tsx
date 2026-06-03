@@ -196,7 +196,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
       case 'discord':
         return discordResult?.ok === true;
       case 'spotify':
-        return spotifyResult?.ok === true;
+        return Boolean(tunnel.callbackUrl) && spotifyResult?.ok === true;
       case 'commands':
         return commandResult?.ok === true;
       case 'invite':
@@ -226,6 +226,25 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
     if (!value) return;
     await navigator.clipboard.writeText(value);
   };
+
+  useEffect(() => {
+    if (step !== 'spotify') return;
+    let active = true;
+    setTunnelBusy(true);
+    void api.tunnelStart()
+      .then((status) => {
+        if (active) setTunnel(status);
+      })
+      .catch((err: unknown) => {
+        if (active) setTunnel({ running: false, error: err instanceof Error ? err.message : 'Could not create the public Spotify redirect.' });
+      })
+      .finally(() => {
+        if (active) setTunnelBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [step]);
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-5 p-6">
@@ -325,7 +344,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
         {step === 'spotify' && (
           <div className="space-y-3 text-sm">
-            <p>Create or open a Spotify app in the Developer Dashboard. Set the Redirect URI to exactly:</p>
+            <p>greenroom creates the public Spotify callback before you enter credentials. Add this exact Redirect URI in the Spotify Developer Dashboard:</p>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={() => setGuide('spotify')}>
                 <PlayCircle size={16} strokeWidth={2.1} aria-hidden="true" />
@@ -338,11 +357,11 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             </div>
             <div className="grid gap-2 md:grid-cols-[1fr_auto]">
               <Code className={`block min-w-0 truncate py-2 ${tunnel.callbackUrl ? '' : 'text-muted'}`}>
-                {tunnel.callbackUrl ?? 'Start the tunnel to get the Spotify redirect URI.'}
+                {tunnel.callbackUrl ?? (tunnelBusy ? 'Preparing your public Spotify redirect…' : 'Could not create the redirect yet. Retry below.')}
               </Code>
               <div className="flex gap-2">
                 <Button variant="ghost" disabled={tunnelBusy} onClick={() => void startTunnel()}>
-                  {tunnelBusy ? 'Starting...' : tunnel.callbackUrl ? 'Refresh tunnel' : 'Start tunnel'}
+                  {tunnelBusy ? 'Preparing…' : tunnel.callbackUrl ? 'Refresh redirect' : 'Retry'}
                 </Button>
                 <Button variant="ghost" disabled={!tunnel.callbackUrl} onClick={() => void copyText(tunnel.callbackUrl)}>
                   <Copy size={16} strokeWidth={2.1} aria-hidden="true" />
