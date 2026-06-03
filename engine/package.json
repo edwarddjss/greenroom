@@ -1,0 +1,44 @@
+{
+  "name": "@greenroom/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "greenroom engine — Discord client + Spotify Connect control + FFmpeg loopback capture",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./health": {
+      "types": "./dist/health.d.ts",
+      "default": "./dist/health.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "register": "node dist/register-commands.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.2",
+    "@snazzah/davey": "^0.1.11",
+    "discord.js": "^14.26.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "libsodium-wrappers": "^0.7.13",
+    "node-fetch": "^3.3.2",
+    "node-llama-cpp": "^3.6.0",
+    "opusscript": "^0.1.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

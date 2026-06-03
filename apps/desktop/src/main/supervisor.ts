@@ -1,0 +1,258 @@
+import { utilityProcess, type UtilityProcess } from 'electron';
+import {
+  EngineCredentials,
+  EMPTY_PREREQS,
+  type EngineSnapshot,
+  type EngineState,
+  type HealthEventName,
+  type LogLine,
+  type PrereqReport,
+} from '@greenroom/shared';
+import { HEALTH_MARKER } from '@greenroom/engine/health';
+import { engineEntry } from './paths';
+import { loadCreds } from './vault';
+import { buildEngineEnv } from './engine-env';
+
+interface SupervisorCallbacks {
+  onState: (snapshot: EngineSnapshot) => void;
+  onLog: (lines: LogLine[]) => void;
+}
+
+const MAX_BACKOFF_MS = 30_000;
+const MAX_RESTART_ATTEMPTS = 5;
+const HEALTHY_RESET_MS = 60_000;
+const READY_WATCHDOG_MS = 20_000;
+const LOG_RING_SIZE = 1000;
+const ANSI_ESCAPE_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
+
+export class Supervisor {
+  private child: UtilityProcess | null = null;
+  private state: EngineState = 'idle';
+  private lastError: string | undefined;
+  private spotifyLinked = false;
+  private captureActive = false;
+  private prereqs: PrereqReport = { ...EMPTY_PREREQS };
+
+  private discordReady = false;
+  private authServerReady = false;
+  private userStopped = false;
+  private restartAttempts = 0;
+  private backoffTimer: NodeJS.Timeout | null = null;
+  private watchdog: NodeJS.Timeout | null = null;
+  private healthyTimer: NodeJS.Timeout | null = null;
+
+  private readonly logRing: LogLine[] = [];
+  private redactList: string[] = [];
+
+  constructor(private readonly cb: SupervisorCallbacks) {}
+
+  snapshot(): EngineSnapshot {
+    const snap: EngineSnapshot = {
+      state: this.state,
+      prereqs: this.prereqs,
+      spotifyLinked: this.spotifyLinked,
+      captureActive: this.captureActive,
+    };
+    if (this.lastError) snap.lastError = this.lastError;
+    return snap;
+  }
+
+  setPrereqs(report: PrereqReport): void {
+    this.prereqs = report;
+    this.emit();
+  }
+
+  recentLogs(): LogLine[] {
+    return [...this.logRing];
+  }
+
+  start(): EngineSnapshot {
+    if (this.child) return this.snapshot();
+
+    const parsed = EngineCredentials.safeParse(loadCreds());
+    if (!parsed.success) {
+      this.state = 'idle';
+      this.lastError = 'Credentials incomplete — finish onboarding first.';
+      this.emit();
+      return this.snapshot();
+    }
+
+    this.userStopped = false;
+    this.discordReady = false;
+    this.authServerReady = false;
+    this.transition('starting');
+
+    const creds = parsed.data;
+    this.redactList = [creds.discordToken, creds.spotifyClientSecret].filter(Boolean);
+
+    const env = buildEngineEnv(creds);
+
+    const child = utilityProcess.fork(engineEntry(), [], { stdio: 'pipe', env });
+    this.child = child;
+
+    child.stdout?.on('data', (chunk: Buffer) => this.ingest(chunk, 'info'));
+    child.stderr?.on('data', (chunk: Buffer) => this.ingest(chunk, 'warn'));
+    child.on('exit', (code) => this.onExit(code));
+
+    this.watchdog = setTimeout(() => {
+      if (this.state === 'starting') {
+        this.lastError = 'Engine did not become ready within 20s.';
+        this.transition('crashed');
+        this.killChild();
+        this.scheduleRestart();
+      }
+    }, READY_WATCHDOG_MS);
+
+    this.emit();
+    return this.snapshot();
+  }
+
+  stop(): EngineSnapshot {
+    this.userStopped = true;
+    this.clearTimers();
+    this.transition('stopping');
+    this.killChild();
+    this.captureActive = false;
+    this.transition('idle');
+    return this.snapshot();
+  }
+
+  restart(): EngineSnapshot {
+    this.stop();
+    return this.start();
+  }
+
+  // ----- internals -----
+
+  private killChild(): void {
+    if (this.child) {
+      try {
+        this.child.kill();
+      } catch {
+        // best-effort
+      }
+      this.child = null;
+    }
+  }
+
+  private onExit(code: number | undefined): void {
+    this.child = null;
+    this.captureActive = false;
+    if (this.userStopped) {
+      this.transition('idle');
+      return;
+    }
+    this.lastError = `Engine exited (code ${code ?? 'unknown'}).`;
+    this.transition('crashed');
+    this.scheduleRestart();
+  }
+
+  private scheduleRestart(): void {
+    if (this.restartAttempts >= MAX_RESTART_ATTEMPTS) {
+      this.lastError = `Engine failed ${MAX_RESTART_ATTEMPTS} times. Stopped retrying — check the logs.`;
+      this.emit();
+      return;
+    }
+    const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** this.restartAttempts);
+    this.restartAttempts += 1;
+    this.backoffTimer = setTimeout(() => this.start(), delay);
+  }
+
+  private maybeRunning(): void {
+    if (this.discordReady && this.authServerReady && this.state === 'starting') {
+      if (this.watchdog) clearTimeout(this.watchdog);
+      this.transition('running');
+      // Reset the failure counter once we've been healthy for a while.
+      this.healthyTimer = setTimeout(() => {
+        this.restartAttempts = 0;
+      }, HEALTHY_RESET_MS);
+    }
+  }
+
+  private handleHealth(event: HealthEventName, data: Record<string, unknown> | undefined): void {
+    switch (event) {
+      case 'auth_server_listening':
+        this.authServerReady = true;
+        this.maybeRunning();
+        break;
+      case 'discord_ready':
+        this.discordReady = true;
+        this.maybeRunning();
+        break;
+      case 'ffmpeg_ready':
+      case 'voice_ready':
+        this.captureActive = true;
+        this.emit();
+        break;
+      case 'spotify_profiles_loaded':
+        this.spotifyLinked = typeof data?.count === 'number' && data.count > 0;
+        this.emit();
+        break;
+      case 'spotify_auth_saved':
+        this.spotifyLinked = true;
+        this.emit();
+        break;
+      case 'engine_error':
+        this.lastError = typeof data?.message === 'string' ? data.message : 'Engine reported an error.';
+        if (this.state === 'running') this.transition('degraded');
+        else this.emit();
+        break;
+    }
+  }
+
+  private ingest(chunk: Buffer, level: LogLine['level']): void {
+    const lines = chunk.toString('utf8').split('\n');
+    const batch: LogLine[] = [];
+    for (const raw of lines) {
+      const line = raw.replace(ANSI_ESCAPE_PATTERN, '').trimEnd();
+      if (!line) continue;
+
+      const markerIdx = line.indexOf(HEALTH_MARKER);
+      if (markerIdx !== -1) {
+        try {
+          const json = JSON.parse(line.slice(markerIdx + HEALTH_MARKER.length).trim()) as {
+            event: HealthEventName;
+            data?: Record<string, unknown>;
+          };
+          this.handleHealth(json.event, json.data);
+        } catch {
+          // not a valid health event; fall through and log it
+        }
+        continue;
+      }
+
+      const entry: LogLine = { ts: Date.now(), level, text: this.redact(line) };
+      this.logRing.push(entry);
+      if (this.logRing.length > LOG_RING_SIZE) this.logRing.shift();
+      batch.push(entry);
+    }
+    if (batch.length > 0) this.cb.onLog(batch);
+  }
+
+  private redact(text: string): string {
+    let out = text;
+    for (const secret of this.redactList) {
+      if (secret) out = out.split(secret).join('••••redacted••••');
+    }
+    out = out.replace(/(Bearer|Bot)\s+[\w.\-]{8,}/g, '$1 ••••');
+    return out;
+  }
+
+  private transition(state: EngineState): void {
+    this.state = state;
+    this.emit();
+  }
+
+  private emit(): void {
+    this.cb.onState(this.snapshot());
+  }
+
+  private clearTimers(): void {
+    for (const t of [this.backoffTimer, this.watchdog, this.healthyTimer]) {
+      if (t) clearTimeout(t);
+    }
+    this.backoffTimer = null;
+    this.watchdog = null;
+    this.healthyTimer = null;
+  }
+}

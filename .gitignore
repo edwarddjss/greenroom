@@ -1,6 +1,16 @@
 # Dependencies
 node_modules/
 
+# Build output
+dist/
+out/
+.vite/
+deps_temp_*/
+
+# Downloaded NLU model (large GGUF, fetched on first run)
+models/
+*.gguf
+
 # Environment secrets
 .env
 
@@ -9,6 +19,9 @@ spotify-auth.json
 
 # Audio diagnostic test output
 capture-test.wav
+
+# Local browser profiles and raw clips used to record onboarding guide videos
+.guide-recorder/
 
 # OS artifacts
 Thumbs.db
@@ -20,4 +33,3 @@ Thumbs.db
 
 # Local memory store
 memory.json
-

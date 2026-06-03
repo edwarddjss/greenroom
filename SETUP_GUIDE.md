@@ -43,7 +43,7 @@ To use Spotify Connect (controlling play/pause/skip from Discord), you must regi
 3. Under the **Bot** tab:
    * Click **Add Bot** and confirm.
    * Under **Bot Token**, click **Reset Token** and copy the resulting key. Keep this secure!
-   * Under **Privileged Gateway Intents**, enable **Guild Members Intent** and **Message Content Intent**.
+   * Under **Privileged Gateway Intents**, enable **Message Content Intent**.
 4. Under the **OAuth2** tab:
    * Go to **URL Generator**.
    * Under **Scopes**, select `bot` and `applications.commands`.

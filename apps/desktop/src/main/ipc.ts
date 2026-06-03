@@ -1,0 +1,150 @@
+import { ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import { join, dirname } from 'node:path';
+import {
+  IPC,
+  IPC_EVENT,
+  EngineCredentials,
+  type CommandRegisterResult,
+  type EngineCredentials as Creds,
+} from '@greenroom/shared';
+import { Supervisor } from './supervisor';
+import { scanPrereqs } from './prereqs';
+import { validateDiscord, validateSpotify } from './validators';
+import { loadCreds, saveCreds, credsStatus } from './vault';
+import { ensureModel, isModelPresent } from './model';
+import { dataDir, ffmpegPath, engineEntry, vbcableInstaller } from './paths';
+import { buildEngineEnv } from './engine-env';
+import { tunnelManager } from './tunnel';
+
+type WinGetter = () => BrowserWindow | null;
+
+export function createSupervisor(getWin: WinGetter): Supervisor {
+  return new Supervisor({
+    onState: (snapshot) => getWin()?.webContents.send(IPC_EVENT.engineState, snapshot),
+    onLog: (lines) => getWin()?.webContents.send(IPC_EVENT.engineLog, lines),
+  });
+}
+
+function installVbCable(): { launched: boolean } {
+  const installer = vbcableInstaller();
+  if (!installer || !fs.existsSync(installer)) return { launched: false };
+  if (process.platform === 'win32') {
+    spawn('powershell', ['-Command', `Start-Process -FilePath "${installer}" -Verb RunAs`], {
+      windowsHide: true,
+      detached: true,
+    }).unref();
+    return { launched: true };
+  }
+  return { launched: false };
+}
+
+function registerCommands(): Promise<CommandRegisterResult> {
+  const parsed = EngineCredentials.safeParse(loadCreds());
+  if (!parsed.success) return Promise.resolve({ ok: false, scope: 'global', error: 'Credentials incomplete.' });
+  const creds: Creds = parsed.data;
+  const scope: 'guild' | 'global' = creds.discordGuildId ? 'guild' : 'global';
+  const env = buildEngineEnv(creds);
+  const registerPath = join(dirname(engineEntry()), 'register-commands.js');
+
+  return new Promise((resolve) => {
+    let err = '';
+    const child = utilityProcess.fork(registerPath, [], { stdio: 'pipe', env });
+    child.stderr?.on('data', (d: Buffer) => (err += d.toString()));
+    child.on('exit', (code) => {
+      if (code === 0) resolve({ ok: true, scope });
+      else resolve({ ok: false, scope, error: err.slice(0, 500) || `Registration exited with code ${code}.` });
+    });
+  });
+}
+
+async function exportDiagnostics(): Promise<{ path: string }> {
+  const prereqs = await scanPrereqs();
+  const report = {
+    ts: new Date().toISOString(),
+    platform: process.platform,
+    arch: process.arch,
+    versions: { electron: process.versions.electron, node: process.versions.node },
+    ffmpegPath: ffmpegPath(),
+    modelPresent: isModelPresent(),
+    prereqs,
+    creds: credsStatus(),
+  };
+  const dir = join(dataDir(), 'diagnostics');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = join(dir, `greenroom-diagnostics-${Date.now()}.json`);
+  fs.writeFileSync(file, JSON.stringify(report, null, 2));
+  return { path: file };
+}
+
+async function ensurePublicAuthTunnel(): Promise<void> {
+  const parsed = EngineCredentials.safeParse(loadCreds());
+  if (!parsed.success) return;
+
+  const current = tunnelManager.getStatus();
+  if (current.running && current.url) return;
+  if (current.url && !current.error) return;
+
+  const started = await tunnelManager.start();
+  if (!started.url) {
+    console.warn(`[Tunnel] Could not start public Spotify redirect tunnel: ${started.error ?? 'No public URL was returned.'}`);
+  }
+}
+
+export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
+  ipcMain.handle(IPC.engineStart, async () => {
+    await ensurePublicAuthTunnel();
+    return supervisor.start();
+  });
+  ipcMain.handle(IPC.engineStop, () => supervisor.stop());
+  ipcMain.handle(IPC.engineRestart, async () => {
+    await ensurePublicAuthTunnel();
+    return supervisor.restart();
+  });
+  ipcMain.handle(IPC.engineGetSnapshot, () => supervisor.snapshot());
+
+  ipcMain.handle(IPC.prereqsScan, async () => {
+    const report = await scanPrereqs();
+    supervisor.setPrereqs(report);
+    getWin()?.webContents.send(IPC_EVENT.prereqs, report);
+    return report;
+  });
+
+  ipcMain.handle(IPC.vbcableInstall, () => installVbCable());
+  ipcMain.handle(IPC.credsSave, (_e, creds: Partial<Creds>) => {
+    saveCreds(creds);
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.credsStatus, () => credsStatus());
+  ipcMain.handle(IPC.validateDiscord, (_e, token: string, clientId: string) => validateDiscord(token, clientId));
+  ipcMain.handle(IPC.validateSpotify, (_e, clientId: string, secret: string) => validateSpotify(clientId, secret));
+  ipcMain.handle(IPC.commandsRegister, () => registerCommands());
+  ipcMain.handle(IPC.tunnelStart, async () => {
+    const status = await tunnelManager.start();
+    const engineState = supervisor.snapshot().state;
+    if (status.url && ['starting', 'running', 'degraded', 'crashed'].includes(engineState)) {
+      supervisor.restart();
+    }
+    return status;
+  });
+  ipcMain.handle(IPC.tunnelStop, () => tunnelManager.stop());
+  ipcMain.handle(IPC.tunnelStatus, () => tunnelManager.getStatus());
+  ipcMain.handle(IPC.windowMinimize, () => getWin()?.minimize());
+  ipcMain.handle(IPC.windowMaximize, () => {
+    const win = getWin();
+    if (!win) return;
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  });
+  ipcMain.handle(IPC.windowClose, () => getWin()?.close());
+  ipcMain.handle(IPC.modelEnsure, () =>
+    ensureModel((p) => getWin()?.webContents.send(IPC_EVENT.modelProgress, p)),
+  );
+  ipcMain.handle(IPC.diagnosticsExport, () => exportDiagnostics());
+  ipcMain.handle(IPC.diagnosticsOpen, async (_e, path: string) => {
+    if (!path || !fs.existsSync(path)) return { ok: false, error: 'Diagnostics file is no longer available.' };
+    shell.showItemInFolder(path);
+    return { ok: true };
+  });
+}

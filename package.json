@@ -1,22 +1,31 @@
 {
-  "name": "spotify-discord-bot",
-  "version": "1.0.0",
-  "description": "Discord Bot that streams Spotify client audio via virtual loopback and Spotify Connect control",
-  "main": "index.js",
+  "name": "greenroom",
+  "version": "0.1.0",
+  "private": true,
+  "description": "greenroom — self-hosted Spotify-to-Discord streaming bot with a Windows desktop client",
   "type": "module",
-  "scripts": {
-    "start": "node index.js",
-    "register": "node register-commands.js",
-    "test": "node --test tests/*.test.js"
+  "engines": {
+    "node": ">=20"
   },
-  "dependencies": {
-    "@discordjs/voice": "^0.19.2",
-    "@snazzah/davey": "^0.1.11",
-    "discord.js": "^14.26.4",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "libsodium-wrappers": "^0.7.13",
-    "node-fetch": "^3.3.2",
-    "opusscript": "^0.1.1"
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev:engine": "pnpm --filter @greenroom/engine dev",
+    "guides:record": "node scripts/record-guides.mjs",
+    "win:dev": "bash scripts/win-dev.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "playwright": "^1.60.0",
+    "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "node-llama-cpp"
+    ]
   }
 }
