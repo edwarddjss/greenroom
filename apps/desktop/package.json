@@ -6,14 +6,60 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "pnpm --filter @greenroom/engine build && electron-vite build",
+    "build": "node scripts/build.mjs",
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "package": "pnpm build && electron-builder --win --x64"
+    "package": "node scripts/package.mjs"
+  },
+  "build": {
+    "appId": "app.greenroom.desktop",
+    "productName": "greenroom",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin/ffmpeg.exe",
+        "to": "bin/ffmpeg.exe"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "greenroom-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "greenroom"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "edwarddjss",
+        "repo": "spotify-discord-bot",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
     "@greenroom/engine": "workspace:*",
     "@greenroom/shared": "workspace:*",
+    "electron-updater": "^6.3.9",
     "lucide-react": "^1.17.0",
     "sql.js": "^1.14.1"
   },
