@@ -21,6 +21,12 @@ const TITLES: Record<StepId, string> = {
 
 type GuideId = 'discord' | 'spotify' | 'routing' | 'vbcable';
 
+// Resolve bundled /public assets relative to the document so they work both in
+// dev (served over http) and in the packaged app (loaded from file://, where an
+// absolute "/guides/..." path would point at the filesystem root). electron-vite
+// sets BASE_URL to "./" for the renderer build and "/" in dev.
+const guideAsset = (file: string): string => `${import.meta.env.BASE_URL}guides/${file}`;
+
 interface Guide {
   title: string;
   summary: string;
@@ -37,8 +43,8 @@ const GUIDES: Record<GuideId, Guide> = {
     summary: 'Create the application, add a bot, enable Message Content Intent, then copy the bot token and Application ID.',
     primaryLabel: 'Open Discord Developer Portal',
     primaryUrl: 'https://discord.com/developers/applications',
-    videoSrc: '/guides/discord-bot.webm',
-    posterSrc: '/guides/discord-bot-poster.jpg',
+    videoSrc: guideAsset('discord-bot.webm'),
+    posterSrc: guideAsset('discord-bot-poster.jpg'),
     steps: [
       'Create a new application.',
       'Open General Information and copy the Application ID.',
@@ -51,8 +57,8 @@ const GUIDES: Record<GuideId, Guide> = {
     summary: 'Create or open a Spotify developer app, add the exact redirect URI from greenroom, then copy the Client ID and Client Secret.',
     primaryLabel: 'Open Spotify Dashboard',
     primaryUrl: 'https://developer.spotify.com/dashboard',
-    videoSrc: '/guides/spotify-app.webm',
-    posterSrc: '/guides/spotify-app-poster.jpg',
+    videoSrc: guideAsset('spotify-app.webm'),
+    posterSrc: guideAsset('spotify-app-poster.jpg'),
     steps: [
       'Create a Spotify app, or open the greenroom app if you already made one.',
       'Copy the Client ID and reveal the Client Secret.',
@@ -230,7 +236,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
                 <PlayCircle size={16} strokeWidth={2.1} aria-hidden="true" />
                 Show guide
               </Button>
-              <Button variant="ghost" onClick={() => void api.vbcableInstall()}>Run installer (admin)</Button>
+              <Button variant="ghost" onClick={() => void api.vbcableInstall()}>Install / download</Button>
               <Button variant="ghost" disabled={scanning} onClick={() => void scan()}>{scanning ? 'Scanning…' : 'Re-check'}</Button>
             </div>
             <p className="text-muted text-xs">Installing VB-Cable needs admin rights and a reboot. After rebooting, reopen greenroom and we'll resume here.</p>
