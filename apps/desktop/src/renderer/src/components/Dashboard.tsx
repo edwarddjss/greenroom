@@ -3,7 +3,7 @@ import type { EngineSnapshot, EngineState, LogLine } from '@greenroom/shared';
 import { EMPTY_PREREQS } from '@greenroom/shared';
 import { AlertTriangle, CheckCircle2, Copy, MessageCircle, Power, Settings, Square, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
-import { Button, Card, StatusDot } from './ui';
+import { Button, Card, Code, Modal, SectionHeader, StatusDot } from './ui';
 import { SettingsModal } from './SettingsModal';
 
 const STATE_LABEL: Record<EngineState, { label: string; tone: 'ok' | 'warn' | 'bad' | 'idle' }> = {
@@ -172,7 +172,7 @@ export function Dashboard(): JSX.Element {
     <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 overflow-auto p-6 lg:overflow-hidden">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-sm">
+          <span className="flex items-center gap-2 rounded-full border border-line bg-white/[0.04] px-3 py-1 text-[13px] font-medium">
             <StatusDot tone={stateInfo.tone} />
             {stateInfo.label}
           </span>
@@ -200,16 +200,24 @@ export function Dashboard(): JSX.Element {
         <section className="grid min-h-0 content-start gap-4">
           <Card className="space-y-5">
             <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/5">
+              <div
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border ${
+                  snapshot.lastError
+                    ? 'border-danger/25 bg-danger/10'
+                    : homeTone === 'ok'
+                      ? 'border-accent/25 bg-accent/10'
+                      : 'border-warn/25 bg-warn/10'
+                }`}
+              >
                 {snapshot.lastError ? (
                   <AlertTriangle size={20} strokeWidth={2.1} className="text-danger" aria-hidden="true" />
                 ) : (
-                  <CheckCircle2 size={20} strokeWidth={2.1} className={homeTone === 'ok' ? 'text-spotify' : 'text-warn'} aria-hidden="true" />
+                  <CheckCircle2 size={20} strokeWidth={2.1} className={homeTone === 'ok' ? 'text-accent' : 'text-warn'} aria-hidden="true" />
                 )}
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-semibold">{homeTitle}</h1>
-                <p className="mt-1 text-sm text-muted">{nextStep}</p>
+                <h1 className="text-base font-semibold tracking-tight">{homeTitle}</h1>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted">{nextStep}</p>
               </div>
             </div>
 
@@ -225,10 +233,10 @@ export function Dashboard(): JSX.Element {
           </Card>
 
           <Card className="space-y-3">
-            <div className="flex items-center gap-2">
-              <MessageCircle size={16} strokeWidth={2.1} className="text-muted" aria-hidden="true" />
-              <h2 className="text-sm font-semibold">Use in Discord</h2>
-            </div>
+            <SectionHeader
+              label="Use in Discord"
+              icon={<MessageCircle size={15} strokeWidth={2.1} aria-hidden="true" />}
+            />
             <div className="space-y-2 text-sm">
               <CommandRow command="/login" detail="Link Spotify once." />
               <CommandRow command="/play" detail="Play a song, playlist, or Spotify link." />
@@ -239,39 +247,40 @@ export function Dashboard(): JSX.Element {
         </section>
 
         <Card className="flex min-h-[360px] flex-col lg:min-h-0">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Recent activity</h2>
-              <p className="text-xs text-muted">Useful events only. Copy this when asking for help.</p>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              {!followLogs && (
-                <Button variant="ghost" className="min-h-9 px-3 py-1 text-xs" onClick={jumpToLatest}>
-                  Latest
+          <SectionHeader
+            label="Recent activity"
+            detail="Filtered events for troubleshooting."
+            className="mb-3"
+            action={
+              <div className="flex flex-wrap justify-end gap-2">
+                {!followLogs && (
+                  <Button variant="ghost" size="sm" onClick={jumpToLatest}>
+                    Latest
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" disabled={visibleLogs.length === 0} onClick={() => void copyLogs()}>
+                  <Copy size={14} strokeWidth={2.1} aria-hidden="true" />
+                  {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy support log'}
                 </Button>
-              )}
-              <Button variant="ghost" className="min-h-9 px-3 py-1 text-xs" disabled={visibleLogs.length === 0} onClick={() => void copyLogs()}>
-                <Copy size={14} strokeWidth={2.1} aria-hidden="true" />
-                {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy support log'}
-              </Button>
-              <Button
-                variant="ghost"
-                className="min-h-9 px-3 py-1 text-xs"
-                onClick={() => {
-                  setLogs([]);
-                  setFollowLogs(true);
-                }}
-              >
-                <Trash2 size={14} strokeWidth={2.1} aria-hidden="true" />
-                Clear
-              </Button>
-            </div>
-          </div>
-          <div ref={logScrollRef} onScroll={handleLogScroll} className="min-h-0 flex-1 overflow-auto rounded-lg bg-black/30 p-3 text-sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setLogs([]);
+                    setFollowLogs(true);
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={2.1} aria-hidden="true" />
+                  Clear
+                </Button>
+              </div>
+            }
+          />
+          <div ref={logScrollRef} onScroll={handleLogScroll} className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
             {visibleLogs.length === 0 ? (
               <div className="grid h-full place-items-center text-center text-muted">
                 <div>
-                  <div className="text-sm font-medium text-white/80">No activity yet</div>
+                  <div className="text-sm font-medium text-text/80">No activity yet</div>
                   <div className="mt-1 text-xs">Start the bot, then use Discord commands.</div>
                 </div>
               </div>
@@ -307,14 +316,16 @@ export function Dashboard(): JSX.Element {
         />
       )}
 
-      {vbCableProblem && !vbAlertDismissed && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-md space-y-3">
-            <h2 className="text-lg font-semibold">VB-Cable needs attention</h2>
-            <p className="text-sm text-muted">
+      {vbCableProblem && !vbAlertDismissed && !settingsOpen && (
+        <Modal size="sm" onClose={() => setVbAlertDismissed(true)} labelledBy="vb-alert-title">
+          <div className="space-y-3 p-5">
+            <h2 id="vb-alert-title" className="text-base font-semibold tracking-tight">
+              VB-Cable needs attention
+            </h2>
+            <p className="text-[13px] leading-relaxed text-muted">
               {snapshot.prereqs.vbcable.detail ?? 'greenroom could not verify VB-Audio Virtual Cable.'}
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" onClick={() => setVbAlertDismissed(true)}>Dismiss</Button>
               <Button
                 onClick={() => {
@@ -325,8 +336,8 @@ export function Dashboard(): JSX.Element {
                 Open settings
               </Button>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -334,10 +345,10 @@ export function Dashboard(): JSX.Element {
 
 function StatusRow({ tone, label, value }: { tone: 'ok' | 'warn' | 'bad' | 'idle'; label: string; value: string }): JSX.Element {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white/[0.02] px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2.5">
         <StatusDot tone={tone} />
-        <span className="truncate text-sm font-medium">{label}</span>
+        <span className="truncate text-[13px] font-medium">{label}</span>
       </div>
       <span className="shrink-0 text-xs text-muted">{value}</span>
     </div>
@@ -346,8 +357,8 @@ function StatusRow({ tone, label, value }: { tone: 'ok' | 'warn' | 'bad' | 'idle
 
 function CommandRow({ command, detail }: { command: string; detail: string }): JSX.Element {
   return (
-    <div className="flex min-h-11 items-center gap-3 rounded-lg bg-white/[0.03] px-3 py-2">
-      <code className="shrink-0 rounded-md bg-black/35 px-2 py-1 text-xs text-white">{command}</code>
+    <div className="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-2">
+      <Code className="shrink-0">{command}</Code>
       <span className="min-w-0 text-xs text-muted">{detail}</span>
     </div>
   );

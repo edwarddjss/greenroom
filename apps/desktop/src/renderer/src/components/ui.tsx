@@ -103,14 +103,16 @@ export function SectionHeader({
   detail,
   icon,
   action,
+  className = '',
 }: {
   label: string;
   detail?: string;
   icon?: ReactNode;
   action?: ReactNode;
+  className?: string;
 }): JSX.Element {
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className={`flex items-start justify-between gap-3 ${className}`}>
       <div className="flex items-start gap-2">
         {icon ? <span className="mt-px text-muted">{icon}</span> : null}
         <div className="min-w-0">
