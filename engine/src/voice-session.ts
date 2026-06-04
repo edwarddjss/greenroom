@@ -30,6 +30,7 @@ export class VoiceSessionManager {
 
   private voiceConnection: VoiceConnection | null = null;
   private currentChannelId: string | null = null;
+  private activeSpotifyUserId: string | null = null;
   private autoDisconnectTimer: NodeJS.Timeout | null = null;
   activeEffects: AudioEffects = { bassboost: false, speed: 1.0 };
 
@@ -53,6 +54,10 @@ export class VoiceSessionManager {
 
   isActive(): boolean {
     return this.voiceConnection !== null && this.audioEngine.isActive();
+  }
+
+  getActiveSpotifyUserId(): string | null {
+    return this.isActive() ? this.activeSpotifyUserId : null;
   }
 
   updateEffects(type: string): AudioEffects {
@@ -94,6 +99,7 @@ export class VoiceSessionManager {
       this.voiceConnection = null;
     }
     this.currentChannelId = null;
+    this.activeSpotifyUserId = null;
     console.log('[Bot] Voice connection and audio streams cleaned up.');
   }
 
@@ -168,6 +174,7 @@ export class VoiceSessionManager {
     const targetDevice = this.spotify.getUserAudioDevice(spotifyUserId) ?? this.config.audioDevice;
     const handle = this.audioEngine.start(targetDevice, this.activeEffects);
     this.audioPlayer.play(handle.resource);
+    this.activeSpotifyUserId = spotifyUserId;
     return handle;
   }
 

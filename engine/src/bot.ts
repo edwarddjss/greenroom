@@ -15,6 +15,7 @@ import { createVoiceSessionManager } from './voice-session.js';
 import { emitHealth } from './health.js';
 import { nluRouter } from './nlu/router.js';
 import { extractDirectPlayQuery, extractSpotifyReference } from './spotify-utils.js';
+import { playbackActivityName } from './presence.js';
 import type { PlayResult } from './types.js';
 
 export const client = new Client({
@@ -28,6 +29,31 @@ export const client = new Client({
 });
 
 const voiceSession = createVoiceSessionManager({ audioEngine, spotify, config });
+const PRESENCE_SYNC_INTERVAL_MS = 15_000;
+let lastActivityName: string | null | undefined;
+let presenceSyncRunning = false;
+
+async function syncPlaybackPresence(): Promise<void> {
+  if (presenceSyncRunning || !client.user) return;
+  presenceSyncRunning = true;
+  try {
+    const spotifyUserId = voiceSession.getActiveSpotifyUserId();
+    const activityName = spotifyUserId
+      ? playbackActivityName(await spotify.getPlaybackState(spotifyUserId))
+      : null;
+    if (activityName === lastActivityName) return;
+    lastActivityName = activityName;
+    client.user.setPresence({
+      activities: activityName ? [{ name: activityName, type: ActivityType.Listening }] : [],
+    });
+  } finally {
+    presenceSyncRunning = false;
+  }
+}
+
+function refreshPlaybackPresence(): void {
+  setTimeout(() => void syncPlaybackPresence(), 1_000);
+}
 
 async function replyEphemeral(cmd: ChatInputCommandInteraction, content: string): Promise<void> {
   await cmd.reply({ content, flags: MessageFlags.Ephemeral });
@@ -101,6 +127,7 @@ client.on('interactionCreate', (interaction) => {
             ? `Connected to **${voiceChannel.name}**. (Ensure Spotify is running and active on your host PC!)`
             : `Connected to **${voiceChannel.name}**. Spotify auto-resumed on **${targetDeviceName}**.`;
           const reply = await cmd.editReply(replyContent);
+          refreshPlaybackPresence();
           setTimeout(() => void reply.delete().catch(() => {}), 5000);
         } catch (err) {
           console.error('[Bot] Failed to join voice/setup audio:', (err as Error).message);
@@ -143,11 +170,13 @@ client.on('interactionCreate', (interaction) => {
             console.warn('[Bot] Spotify pause failed during stop:', (err as Error).message);
           }
           voiceSession.cleanup();
+          refreshPlaybackPresence();
           const reply = await cmd.editReply('Stopped streaming and paused Spotify.');
           setTimeout(() => void reply.delete().catch(() => {}), 5000);
         } catch (err) {
           console.error('[Bot] Error during stop:', (err as Error).message);
           voiceSession.cleanup();
+          refreshPlaybackPresence();
           await cmd.editReply('Disconnected from voice (Spotify pause could not complete).');
         }
         return;
@@ -177,14 +206,14 @@ client.on('interactionCreate', (interaction) => {
 
 spotify.on('authenticated', (discordUserId: string) => {
   console.log(`[Bot] Spotify linked for user ${discordUserId}`);
-  client.user?.setActivity('Spotify Live', { type: ActivityType.Listening });
 });
 
 client.once('clientReady', () => {
   const tag = client.user?.tag ?? 'unknown';
   console.log(`\x1b[32m[Discord] Logged in as ${tag}!\x1b[0m`);
   emitHealth('discord_ready', { tag });
-  client.user?.setActivity('Spotify', { type: ActivityType.Listening });
+  void syncPlaybackPresence();
+  setInterval(() => void syncPlaybackPresence(), PRESENCE_SYNC_INTERVAL_MS);
   const profilesCount = Object.keys(spotify.profiles).length;
   console.log(`[Bot] Ready. Loaded ${profilesCount} user profile mapping(s).`);
 });
@@ -249,6 +278,7 @@ client.on('messageCreate', (message: Message) => {
           if (message.member) await voiceSession.ensureVoiceConnection(message.member, message.guild, spotifyUserId);
           const result = await spotify.playUserPlaylist(spotifyUserId, resolvedUserId, pending.targetQuery);
           await autoPlayMsg.edit(`Playing **${result.playlistName}** by **${resolvedDisplayName}** on **${result.deviceName}**.`);
+          refreshPlaybackPresence();
           setTimeout(() => void autoPlayMsg.delete().catch(() => {}), 5000);
         } catch (playErr) {
           await autoPlayMsg.edit(`Failed to auto-play playlist: ${(playErr as Error).message}`);
@@ -309,6 +339,7 @@ client.on('messageCreate', (message: Message) => {
         // ignore
       }
       voiceSession.cleanup();
+      refreshPlaybackPresence();
       await loadingMsg.edit('Disconnected and paused Spotify.');
       setTimeout(() => void loadingMsg.delete().catch(() => {}), 5000);
       return;
@@ -369,6 +400,7 @@ client.on('messageCreate', (message: Message) => {
         if (message.member) await voiceSession.ensureVoiceConnection(message.member, message.guild, spotifyUserId);
         const result = await spotify.playUserPlaylist(spotifyUserId, resolved.spotifyUserId, targetQuery);
         await loadingMsg.edit(`Playing **${result.playlistName}** by **${resolved.spotifyDisplayName}** on **${result.deviceName}**.`);
+        refreshPlaybackPresence();
       } catch (err) {
         await loadingMsg.edit(`Failed to play: ${(err as Error).message}`);
       }
@@ -396,6 +428,7 @@ client.on('messageCreate', (message: Message) => {
           result = await spotify.searchAndPlay(spotifyUserId, playQuery);
         }
         await loadingMsg.edit(`Playing **${result.matchName}** on **${result.deviceName}**.`);
+        refreshPlaybackPresence();
         setTimeout(() => void loadingMsg.delete().catch(() => {}), 5000);
       } catch (err) {
         console.error('[Bot] Message play failed:', (err as Error).message);
