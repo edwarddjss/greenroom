@@ -51,6 +51,16 @@ jobs:
           Copy-Item $exe.FullName -Destination "$dest\ffmpeg.exe" -Force
           Write-Host "ffmpeg ready at $dest\ffmpeg.exe"
 
+      - name: Trim unused node-llama-cpp GPU backends
+        shell: pwsh
+        # The NLU runs a small model on CPU (see engine local-llm getLlama gpu:false),
+        # so the CUDA/Vulkan prebuilt backends are dead weight (~hundreds of MB).
+        # Physically remove them before packaging so they can't be bundled.
+        run: |
+          Get-ChildItem -Path . -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '@node-llama-cpp[\\/](win-x64-cuda|win-x64-cuda-ext|win-x64-vulkan|win-arm64)$' } |
+            ForEach-Object { Write-Host "removing $($_.FullName)"; Remove-Item -Recurse -Force $_.FullName }
+
       - name: Build renderer/main/preload
         run: pnpm --filter @greenroom/desktop run build
 

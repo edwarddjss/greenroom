@@ -89,7 +89,10 @@ class LocalLlmProvider implements NluProvider {
     this.state = 'loading';
     try {
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
-      const llama = await getLlama();
+      // CPU only: the 1.5B Q4 NLU model parses occasional commands fine on CPU,
+      // and we ship without the CUDA/Vulkan prebuilt backends to keep the
+      // installer small. Forcing gpu:false avoids any GPU backend probing.
+      const llama = await getLlama({ gpu: false });
       const model = await withModelWarningFilter(() => llama.loadModel({ modelPath: config.nluModelPath }));
       const context = await model.createContext({ contextSize: 2048 });
       this.grammar = await llama.createGrammarForJsonSchema(SCHEMA);

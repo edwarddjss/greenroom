@@ -19,7 +19,10 @@
     },
     "files": [
       "out/**",
-      "package.json"
+      "package.json",
+      "!**/@node-llama-cpp/win-x64-cuda*/**",
+      "!**/@node-llama-cpp/win-x64-vulkan/**",
+      "!**/@node-llama-cpp/win-arm64/**"
     ],
     "extraResources": [
       {
