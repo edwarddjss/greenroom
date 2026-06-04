@@ -137,14 +137,6 @@
       .btn-primary:hover {
         background: #27c089;
       }
-      .btn-secondary {
-        border-color: var(--line);
-        color: var(--muted);
-      }
-      .btn-secondary:hover {
-        border-color: var(--line-strong);
-        color: var(--text);
-      }
       .btn-lg {
         padding: 13px 22px;
         font-size: 15px;
@@ -238,10 +230,6 @@
       }
       .cell:hover {
         background: var(--c-low);
-      }
-      .cell .num {
-        color: var(--muted);
-        margin-bottom: 18px;
       }
       .cell h3 {
         font-size: 18px;
@@ -408,14 +396,13 @@
         <div>
           <h1>Stream your Spotify into any Discord voice channel.</h1>
           <p class="sub">
-            A self-hosted desktop app that streams your own Spotify audio straight into a Discord voice channel. It
-            runs on your PC, and nothing routes through a third-party server.
+            greenroom captures Spotify desktop audio on your Windows PC and streams it into Discord. Your account
+            credentials and audio stay on your computer.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary btn-lg" href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest/download/greenroom-Setup-x64.exe" target="_blank" rel="noopener noreferrer">
               Download for Windows
             </a>
-            <a class="btn btn-secondary btn-lg" href="#setup">How it works</a>
           </div>
           <div class="facts mono">
             <span class="fact">Windows 10/11</span>
@@ -430,24 +417,20 @@
 
       <section class="wrap features">
         <div class="cell">
-          <div class="num mono">01</div>
-          <h3>Self-hosted</h3>
-          <p>The bot runs from your PC. Your Spotify account and the audio never reach a third-party server.</p>
+          <h3>Local audio path</h3>
+          <p>Spotify desktop audio is captured on your PC and sent directly to the Discord voice channel.</p>
         </div>
         <div class="cell">
-          <div class="num mono">02</div>
           <h3>Real Spotify audio</h3>
           <p>It streams exactly what plays on your desktop, including your own queue and library.</p>
         </div>
         <div class="cell">
-          <div class="num mono">03</div>
-          <h3>Plain-language commands</h3>
-          <p>A bundled local model parses requests, so commands don't depend on exact syntax.</p>
+          <h3>Flexible requests</h3>
+          <p>Queue songs and playlists with slash commands, Spotify links, or plain-language requests.</p>
         </div>
         <div class="cell">
-          <div class="num mono">04</div>
-          <h3>Open source</h3>
-          <p>The full source is on GitHub. Installers are published from it on every tagged release.</p>
+          <h3>Friends can link</h3>
+          <p>Other Discord members can securely link their own Spotify accounts to use the same bot.</p>
         </div>
       </section>
 
@@ -459,7 +442,7 @@
               <span class="num mono">01</span>
               <div class="rule"></div>
               <h4>Install greenroom</h4>
-              <p>Download and run the Windows installer. A guided setup handles the rest.</p>
+              <p>Download and run the Windows installer. Guided setup walks through each required connection and audio step.</p>
             </div>
             <div class="step">
               <span class="num mono">02</span>
@@ -515,7 +498,6 @@
             <a href="https://github.com/edwarddjss/spotify-discord-bot/releases/latest" target="_blank" rel="noopener noreferrer">Releases</a>
             <a href="https://github.com/edwarddjss/spotify-discord-bot/issues" target="_blank" rel="noopener noreferrer">Issues</a>
           </div>
-          <div class="mono" style="color: var(--muted)">Open source on GitHub</div>
         </div>
       </div>
     </footer>
