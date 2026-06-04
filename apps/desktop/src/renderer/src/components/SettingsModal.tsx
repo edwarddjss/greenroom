@@ -27,12 +27,14 @@ export function SettingsModal({
   const [toast, setToast] = useState<{ tone: 'ok' | 'bad'; message: string } | null>(null);
   const [credsSummary, setCredsSummary] = useState<string>('Loading...');
   const [credsStatus, setCredsStatus] = useState<CredsStatus | null>(null);
+  const [savedInviteUrl, setSavedInviteUrl] = useState<string | null>(null);
   const [installingCable, setInstallingCable] = useState(false);
   const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
   const update = useUpdater();
 
   useEffect(() => {
     void api.tunnelStatus().then(setTunnel);
+    void api.discordInviteUrl().then(setSavedInviteUrl);
     void api.credsStatus().then((status) => {
       setCredsStatus(status);
       const discord = status.hasDiscord ? 'Discord set' : 'Discord missing';
@@ -41,7 +43,7 @@ export function SettingsModal({
     });
   }, []);
 
-  const canInvite = /^\d{17,20}$/.test(discordClientId);
+  const inviteUrl = /^\d{17,20}$/.test(discordClientId) ? botInviteUrl(discordClientId) : savedInviteUrl;
   const hasDiscordDraft = discordToken.trim() && discordClientId.trim();
   const hasSpotifyDraft = spotifyClientId.trim() && spotifyClientSecret.trim();
 
@@ -53,6 +55,7 @@ export function SettingsModal({
       await api.credsSave({ discordToken, discordClientId });
       setCredsSummary((prev) => prev.replace('Discord missing', 'Discord set'));
       setCredsStatus(await api.credsStatus());
+      setSavedInviteUrl(botInviteUrl(discordClientId));
       setDiscordToken('');
       setDiscordClientId('');
       showToast('ok', 'Discord credentials saved.');
@@ -197,7 +200,7 @@ export function SettingsModal({
               label="Public Spotify login"
               detail="Use this when friends need to link Spotify from outside the host PC."
               action={
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" size="sm" disabled={tunnelBusy} onClick={() => void startTunnel()}>
                     {tunnelBusy ? 'Starting…' : tunnel.running ? 'Refresh tunnel' : 'Start tunnel'}
                   </Button>
@@ -235,7 +238,7 @@ export function SettingsModal({
                 <Button disabled={!hasDiscordDraft || busy === 'discord'} onClick={() => void saveDiscord()}>
                   {busy === 'discord' ? 'Saving…' : 'Validate & save'}
                 </Button>
-                <Button variant="ghost" disabled={!canInvite} onClick={() => window.open(botInviteUrl(discordClientId), '_blank')}>
+                <Button variant="ghost" disabled={!inviteUrl} onClick={() => inviteUrl && window.open(inviteUrl, '_blank')}>
                   Invite bot
                 </Button>
               </div>
@@ -244,7 +247,7 @@ export function SettingsModal({
 
             <div className="space-y-3">
               <SectionHeader label="Spotify app" action={<SavedBadge saved={spotifySaved} />} />
-              <Code className={`block ${tunnel.callbackUrl ? '' : 'text-muted'}`}>{activeRedirectUri}</Code>
+              <Code className={`block break-all whitespace-normal ${tunnel.callbackUrl ? '' : 'text-muted'}`}>{activeRedirectUri}</Code>
               <Field label="Client ID" mono placeholder={spotifySaved ? 'Saved — leave blank to keep' : 'New client ID'} value={spotifyClientId} onChange={(e) => setSpotifyClientId(e.target.value)} />
               <Field label="Client secret" mono type="password" placeholder={spotifySaved ? 'Saved — leave blank to keep' : 'New client secret'} value={spotifyClientSecret} onChange={(e) => setSpotifyClientSecret(e.target.value)} />
               <Button disabled={!hasSpotifyDraft || busy === 'spotify'} onClick={() => void saveSpotify()}>
@@ -256,7 +259,7 @@ export function SettingsModal({
 
           <section className="space-y-3">
             <SectionHeader label="Discord commands" />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="ghost" disabled={busy === 'commands'} onClick={() => void registerCommands()}>
                 {busy === 'commands' ? 'Registering…' : 'Register slash commands'}
               </Button>

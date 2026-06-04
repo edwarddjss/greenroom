@@ -113,6 +113,7 @@ export interface GreenroomIpcApi {
   vbcableInstall(): Promise<VbCableInstallResult>;
   credsSave(creds: Partial<EngineCredentials>): Promise<{ ok: boolean }>;
   credsStatus(): Promise<CredsStatus>;
+  discordInviteUrl(): Promise<string | null>;
   validateDiscord(token: string, clientId: string): Promise<DiscordValidation>;
   validateSpotify(clientId: string, clientSecret: string): Promise<SpotifyValidation>;
   commandsRegister(): Promise<CommandRegisterResult>;
@@ -145,6 +146,7 @@ export const IPC = {
   vbcableInstall: 'vbcable:install',
   credsSave: 'creds:save',
   credsStatus: 'creds:status',
+  discordInviteUrl: 'discord:inviteUrl',
   validateDiscord: 'validate:discord',
   validateSpotify: 'validate:spotify',
   commandsRegister: 'commands:register',

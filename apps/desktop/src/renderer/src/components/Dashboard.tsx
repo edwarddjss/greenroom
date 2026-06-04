@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EngineSnapshot, EngineState, LogLine } from '@greenroom/shared';
 import { EMPTY_PREREQS } from '@greenroom/shared';
-import { AlertTriangle, CheckCircle2, Copy, MessageCircle, Power, Settings, Square, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, MessageCircle, Power, Settings, Square, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../lib/api';
 import { Button, Card, Code, Modal, SectionHeader, StatusDot } from './ui';
 import { SettingsModal } from './SettingsModal';
@@ -100,14 +100,15 @@ export function Dashboard(): JSX.Element {
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [vbAlertDismissed, setVbAlertDismissed] = useState(false);
   const [followLogs, setFollowLogs] = useState(true);
   const logScrollRef = useRef<HTMLDivElement | null>(null);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void api.engineGetSnapshot().then(setSnapshot);
     void api.prereqsScan();
+    void api.discordInviteUrl().then(setInviteUrl);
     const offState = api.onEngineState(setSnapshot);
     const offLog = api.onEngineLog((lines) => setLogs((prev) => [...prev, ...lines].slice(-500)));
     const offPrereqs = api.onPrereqs((prereqs) => setSnapshot((prev) => ({ ...prev, prereqs })));
@@ -119,7 +120,9 @@ export function Dashboard(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (followLogs) logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (followLogs && logScrollRef.current) {
+      logScrollRef.current.scrollTo({ top: logScrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
   }, [logs, followLogs]);
 
   const handleLogScroll = (): void => {
@@ -165,19 +168,24 @@ export function Dashboard(): JSX.Element {
 
   const jumpToLatest = (): void => {
     setFollowLogs(true);
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    logScrollRef.current?.scrollTo({ top: logScrollRef.current.scrollHeight, behavior: 'smooth' });
   };
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 overflow-auto p-6 lg:overflow-hidden">
-      <header className="flex items-center justify-between gap-3">
+    <div className="mx-auto h-full max-w-5xl overflow-auto p-4 sm:p-6">
+      <div className="flex min-h-full flex-col gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-2 rounded-full border border-line bg-white/[0.04] px-3 py-1 text-[13px] font-medium">
             <StatusDot tone={stateInfo.tone} />
             {stateInfo.label}
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" disabled={!inviteUrl} onClick={() => inviteUrl && window.open(inviteUrl, '_blank')}>
+            <UserPlus size={16} strokeWidth={2.1} aria-hidden="true" />
+            Invite bot
+          </Button>
           <Button variant="ghost" onClick={() => setSettingsOpen(true)}>
             <Settings size={16} strokeWidth={2.1} aria-hidden="true" />
             Settings
@@ -196,7 +204,7 @@ export function Dashboard(): JSX.Element {
         </div>
       </header>
 
-      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-4 min-[980px]:grid-cols-[320px_minmax(0,1fr)]">
         <section className="grid min-h-0 content-start gap-4">
           <Card className="space-y-5">
             <div className="flex items-start gap-3">
@@ -246,7 +254,7 @@ export function Dashboard(): JSX.Element {
           </Card>
         </section>
 
-        <Card className="flex min-h-[360px] flex-col lg:min-h-0">
+        <Card className="flex min-h-[360px] flex-col">
           <SectionHeader
             label="Recent activity"
             detail="Filtered events for troubleshooting."
@@ -303,7 +311,6 @@ export function Dashboard(): JSX.Element {
                 );
               })
             )}
-            <div ref={logEndRef} />
           </div>
         </Card>
       </div>
@@ -339,6 +346,7 @@ export function Dashboard(): JSX.Element {
           </div>
         </Modal>
       )}
+      </div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ const api: GreenroomIpcApi = {
   vbcableInstall: () => ipcRenderer.invoke(IPC.vbcableInstall),
   credsSave: (creds) => ipcRenderer.invoke(IPC.credsSave, creds),
   credsStatus: () => ipcRenderer.invoke(IPC.credsStatus),
+  discordInviteUrl: () => ipcRenderer.invoke(IPC.discordInviteUrl),
   validateDiscord: (token, clientId) => ipcRenderer.invoke(IPC.validateDiscord, token, clientId),
   validateSpotify: (clientId, secret) => ipcRenderer.invoke(IPC.validateSpotify, clientId, secret),
   commandsRegister: () => ipcRenderer.invoke(IPC.commandsRegister),

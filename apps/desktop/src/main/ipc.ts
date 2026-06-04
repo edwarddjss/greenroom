@@ -5,6 +5,7 @@ import {
   IPC,
   IPC_EVENT,
   EngineCredentials,
+  botInviteUrl,
   type CommandRegisterResult,
   type EngineCredentials as Creds,
 } from '@greenroom/shared';
@@ -142,6 +143,10 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     return { ok: true };
   });
   ipcMain.handle(IPC.credsStatus, () => credsStatus());
+  ipcMain.handle(IPC.discordInviteUrl, () => {
+    const clientId = loadCreds().discordClientId;
+    return clientId && /^\d{17,20}$/.test(clientId) ? botInviteUrl(clientId) : null;
+  });
   ipcMain.handle(IPC.validateDiscord, (_e, token: string, clientId: string) => validateDiscord(token, clientId));
   ipcMain.handle(IPC.validateSpotify, (_e, clientId: string, secret: string) => validateSpotify(clientId, secret));
   ipcMain.handle(IPC.commandsRegister, () => registerCommands());

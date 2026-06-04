@@ -16,7 +16,7 @@ export function Card({
   className?: string;
   variant?: CardVariant;
 }): JSX.Element {
-  return <div className={`rounded-xl border p-5 ${cardVariants[variant]} ${className}`}>{children}</div>;
+  return <div className={`rounded-xl border p-4 sm:p-5 ${cardVariants[variant]} ${className}`}>{children}</div>;
 }
 
 type Variant = 'primary' | 'ghost' | 'danger';
@@ -41,7 +41,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }): JSX.Element {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed ${sizes[size]} ${variants[variant]} ${className}`}
+      className={`inline-flex whitespace-nowrap items-center justify-center rounded-lg font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed ${sizes[size]} ${variants[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -112,15 +112,15 @@ export function SectionHeader({
   className?: string;
 }): JSX.Element {
   return (
-    <div className={`flex items-start justify-between gap-3 ${className}`}>
-      <div className="flex items-start gap-2">
+    <div className={`flex flex-wrap items-start justify-between gap-3 ${className}`}>
+      <div className="flex min-w-0 items-start gap-2">
         {icon ? <span className="mt-px text-muted">{icon}</span> : null}
         <div className="min-w-0">
           <h2 className="text-[13px] font-semibold tracking-tight text-text">{label}</h2>
           {detail ? <p className="mt-0.5 text-xs text-muted">{detail}</p> : null}
         </div>
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="max-w-full">{action}</div> : null}
     </div>
   );
 }

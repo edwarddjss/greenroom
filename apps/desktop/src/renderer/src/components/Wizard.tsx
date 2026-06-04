@@ -247,7 +247,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   }, [step]);
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col gap-5 p-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col gap-3 p-4 sm:gap-5 sm:p-6">
       <div className="flex items-center gap-1.5">
         {ORDER.map((id, i) => (
           <div
@@ -256,16 +256,16 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
           />
         ))}
       </div>
-      <h1 className="text-xl font-semibold tracking-tight">
+      <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
         {TITLES[step]} <span className="text-base font-normal text-muted">· step {stepIdx + 1} of {ORDER.length}</span>
       </h1>
 
-      <Card className="flex-1 overflow-auto">
+      <Card className="min-h-0 flex-1 overflow-auto">
         {step === 'welcome' && (
           <div className="space-y-3 text-sm leading-relaxed">
             <p>greenroom streams your own Spotify audio into a Discord voice channel from your PC. This setup connects the two end to end.</p>
             <p className="text-muted">You'll need: a Discord account, Spotify Premium, and about 10 minutes. We'll install an audio cable and walk through two developer portals.</p>
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
               <Pill tone={prereqs.ffmpeg.status === 'ok' ? 'ok' : 'idle'} label="FFmpeg" detail={prereqs.ffmpeg.detail} />
               <Pill tone={prereqs.vbcable.status === 'ok' ? 'ok' : 'idle'} label="VB-Cable" detail={prereqs.vbcable.detail} />
             </div>
@@ -427,7 +427,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
         {step === 'finish' && <FinishStep />}
       </Card>
 
-      <div className="flex justify-between">
+      <div className="flex flex-wrap justify-between gap-2">
         <Button variant="ghost" onClick={back} disabled={stepIdx === 0}>Back</Button>
         {step === 'finish' ? (
           <Button onClick={() => { localStorage.removeItem(WIZARD_STEP_KEY); void api.engineStart(); onDone(); }}>Go to dashboard</Button>
