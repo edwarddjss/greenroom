@@ -3,6 +3,7 @@ import { api } from './lib/api';
 import { Dashboard } from './components/Dashboard';
 import { Wizard } from './components/Wizard';
 import { TitleBar } from './components/TitleBar';
+import { StatusBar } from './components/StatusBar';
 
 type View = 'loading' | 'wizard' | 'dashboard';
 
@@ -20,6 +21,7 @@ export function App(): JSX.Element {
       <div className="flex h-full flex-col">
         <TitleBar />
         <div className="grid min-h-0 flex-1 place-items-center text-muted">Loading…</div>
+        <StatusBar />
       </div>
     );
   }
@@ -29,6 +31,7 @@ export function App(): JSX.Element {
       <main className="app-no-drag min-h-0 flex-1">
         {view === 'wizard' ? <Wizard onDone={() => setView('dashboard')} /> : <Dashboard />}
       </main>
+      <StatusBar />
     </div>
   );
 }
