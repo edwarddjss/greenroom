@@ -40,6 +40,7 @@ export class Supervisor {
   private backoffTimer: NodeJS.Timeout | null = null;
   private watchdog: NodeJS.Timeout | null = null;
   private healthyTimer: NodeJS.Timeout | null = null;
+  private restartBlockedReason: string | undefined;
 
   private readonly logRing: LogLine[] = [];
   private redactList: string[] = [];
@@ -78,6 +79,7 @@ export class Supervisor {
     }
 
     this.userStopped = false;
+    this.restartBlockedReason = undefined;
     this.discordReady = false;
     this.authServerReady = false;
     this.transition('starting');
@@ -142,8 +144,9 @@ export class Supervisor {
       this.transition('idle');
       return;
     }
-    this.lastError = `Engine exited (code ${code ?? 'unknown'}).`;
+    this.lastError = this.restartBlockedReason ?? `Engine exited (code ${code ?? 'unknown'}).`;
     this.transition('crashed');
+    if (this.restartBlockedReason) return;
     this.scheduleRestart();
   }
 
@@ -206,6 +209,10 @@ export class Supervisor {
     for (const raw of lines) {
       const line = raw.replace(ANSI_ESCAPE_PATTERN, '').trimEnd();
       if (!line) continue;
+      if (/discord login failed:.*used disallowed intents/i.test(line)) {
+        this.restartBlockedReason =
+          'Enable Message Content Intent in the Discord Developer Portal, then start the bot again.';
+      }
 
       const markerIdx = line.indexOf(HEALTH_MARKER);
       if (markerIdx !== -1) {

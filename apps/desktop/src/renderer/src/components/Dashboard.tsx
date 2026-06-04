@@ -53,6 +53,12 @@ function isRoutineLog(text: string): boolean {
   return (
     /^=+$/.test(text.trim()) ||
     /engine bootstrapping/i.test(text) ||
+    /auth server listening/i.test(text) ||
+    /login links use/i.test(text) ||
+    /redirect URI is/i.test(text) ||
+    /logged in as/i.test(text) ||
+    /using the rule-based parser/i.test(text) ||
+    /\[Bootstrap\] Fix: open the Discord Developer Portal/i.test(text) ||
     /loaded \d+ linked Spotify profile/i.test(text) ||
     /loaded \d+ user profile/i.test(text) ||
     /\[Bot\] Ready\. Loaded \d+ user profile mapping/i.test(text) ||
@@ -76,11 +82,16 @@ function isUserFacingLog(line: LogLine): boolean {
 
 function friendlyLog(line: LogLine): FriendlyLogItem {
   const text = line.text;
-  if (/auth server listening/i.test(text)) return { title: 'Login page is ready', detail: 'Spotify account linking can receive callbacks.', tone: 'ok' };
-  if (/login links use/i.test(text)) return { title: 'Spotify login link is public', detail: text.replace(/^\[Spotify\]\s*/i, ''), tone: 'ok' };
-  if (/redirect URI is/i.test(text)) return { title: 'Spotify redirect is configured', detail: text.replace(/^\[Spotify\]\s*/i, ''), tone: 'ok' };
-  if (/logged in as/i.test(text)) return { title: 'Discord bot is online', detail: text.replace(/^\[Discord\]\s*/i, ''), tone: 'ok' };
-  if (/discord login failed/i.test(text)) return { title: 'Discord login failed', detail: text.replace(/^\[Bootstrap\]\s*/i, ''), tone: 'bad' };
+  if (/discord login failed.*used disallowed intents/i.test(text)) {
+    return {
+      title: 'Discord setup needs attention',
+      detail: 'Enable Message Content Intent in the Discord Developer Portal, then start the bot again.',
+      tone: 'bad',
+    };
+  }
+  if (/discord login failed/i.test(text)) {
+    return { title: 'Discord login failed', detail: text.replace(/^.*discord login failed:\s*/i, ''), tone: 'bad' };
+  }
   if (/port .* already in use|port .* unavailable/i.test(text)) return { title: 'Spotify login port is busy', detail: 'Another app is using the login callback port.', tone: 'bad' };
   if (/spotify linked|authorization successful/i.test(text)) return { title: 'Spotify account linked', detail: 'A user completed Spotify login.', tone: 'ok' };
   if (isAudioEngineProblem(text)) return { title: 'Audio capture issue', detail: 'greenroom could not start the local audio stream.', tone: 'bad' };
@@ -88,6 +99,17 @@ function friendlyLog(line: LogLine): FriendlyLogItem {
   if (/failed|error|critical/i.test(text)) return { title: 'Something needs attention', detail: text, tone: 'bad' };
   if (/warn|warning/i.test(text) || line.level === 'warn') return { title: 'Heads up', detail: text, tone: 'warn' };
   return { title: text.replace(/^\[[^\]]+\]\s*/, ''), tone: line.level === 'error' ? 'bad' : 'idle' };
+}
+
+function userFacingLogs(logs: LogLine[]): LogLine[] {
+  const unique = new Map<string, LogLine>();
+  for (const line of logs) {
+    if (!isUserFacingLog(line)) continue;
+    const item = friendlyLog(line);
+    const key = `${item.title}\n${item.detail ?? ''}`;
+    unique.set(key, line);
+  }
+  return [...unique.values()].sort((a, b) => a.ts - b.ts);
 }
 
 export function Dashboard(): JSX.Element {
@@ -135,7 +157,7 @@ export function Dashboard(): JSX.Element {
   const running = snapshot.state === 'running' || snapshot.state === 'degraded' || snapshot.state === 'starting';
   const stateInfo = STATE_LABEL[snapshot.state];
   const vbCableProblem = snapshot.prereqs.vbcable.status !== 'ok' && snapshot.prereqs.vbcable.status !== 'unknown';
-  const visibleLogs = logs.filter(isUserFacingLog);
+  const visibleLogs = userFacingLogs(logs);
   const needsSetup = !snapshot.spotifyLinked;
   const homeTone = snapshot.lastError ? 'bad' : needsSetup ? 'warn' : snapshot.captureActive ? 'ok' : stateInfo.tone;
   const homeTitle = snapshot.lastError
