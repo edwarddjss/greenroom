@@ -89,9 +89,18 @@
         height: 64px;
       }
       .wordmark {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
         font-weight: 600;
         font-size: 18px;
         letter-spacing: -0.03em;
+      }
+      .wordmark svg {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        flex: none;
       }
       .nav-right {
         display: flex;
@@ -375,7 +384,16 @@
     <header>
       <div class="wrap">
         <nav>
-          <a class="wordmark" href="#top">greenroom</a>
+          <a class="wordmark" href="#top">
+            <svg viewBox="0 0 256 256" aria-hidden="true">
+              <rect width="256" height="256" rx="56" fill="#15151b" />
+              <rect x="50" y="126" width="28" height="72" rx="10" fill="#1fa877" />
+              <rect x="94" y="78" width="28" height="120" rx="10" fill="#1fa877" />
+              <rect x="138" y="102" width="28" height="96" rx="10" fill="#1fa877" />
+              <rect x="182" y="54" width="28" height="144" rx="10" fill="#1fa877" />
+            </svg>
+            greenroom
+          </a>
           <div class="nav-right">
             <a class="muted" href="#setup">How it works</a>
             <a class="muted" href="https://github.com/edwarddjss/spotify-discord-bot" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -479,7 +497,16 @@
     <footer>
       <div class="wrap foot">
         <div>
-          <div class="wordmark">greenroom</div>
+          <div class="wordmark">
+            <svg viewBox="0 0 256 256" aria-hidden="true">
+              <rect width="256" height="256" rx="56" fill="#15151b" />
+              <rect x="50" y="126" width="28" height="72" rx="10" fill="#1fa877" />
+              <rect x="94" y="78" width="28" height="120" rx="10" fill="#1fa877" />
+              <rect x="138" y="102" width="28" height="96" rx="10" fill="#1fa877" />
+              <rect x="182" y="54" width="28" height="144" rx="10" fill="#1fa877" />
+            </svg>
+            greenroom
+          </div>
           <p class="disclaimer">Not affiliated with, endorsed by, or sponsored by Spotify or Discord.</p>
         </div>
         <div class="foot-right">

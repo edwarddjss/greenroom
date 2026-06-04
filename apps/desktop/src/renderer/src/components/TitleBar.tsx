@@ -10,12 +10,14 @@ export function TitleBar(): JSX.Element {
   return (
     <div className="app-drag flex h-11 select-none items-center justify-between border-b border-line bg-bg/95 pl-4">
       <div className="flex h-full items-center gap-2.5">
-        <div
-          className="grid h-[18px] w-[18px] place-items-center rounded-[6px] border border-accent/30 bg-accent/15"
-          aria-hidden="true"
-        >
-          <span className="h-[5px] w-[5px] rounded-full bg-accent" />
-        </div>
+        {/* Same mark as the app/taskbar icon (build/icon.svg): emerald equalizer bars. */}
+        <svg viewBox="0 0 256 256" className="h-5 w-5 shrink-0 rounded-[5px]" aria-hidden="true">
+          <rect width="256" height="256" rx="56" fill="#15151b" />
+          <rect x="50" y="126" width="28" height="72" rx="10" fill="#1fa877" />
+          <rect x="94" y="78" width="28" height="120" rx="10" fill="#1fa877" />
+          <rect x="138" y="102" width="28" height="96" rx="10" fill="#1fa877" />
+          <rect x="182" y="54" width="28" height="144" rx="10" fill="#1fa877" />
+        </svg>
         <span className="text-sm font-semibold tracking-tight text-text/90">greenroom</span>
       </div>
       <div className="app-no-drag flex h-full border-l border-line">
