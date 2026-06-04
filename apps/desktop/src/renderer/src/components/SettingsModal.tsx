@@ -1,22 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { useUpdater } from '../lib/useUpdater';
-import { Button, Code, Field, Modal, Pill, ProgressBar, SectionHeader } from './ui';
-
-const VISIBLE_PREREQS = [
-  ['ffmpeg', 'FFmpeg'],
-  ['vbcable', 'VB-Cable'],
-  ['spotify', 'Spotify app'],
-] as const;
-
-function prereqTone(status: PrereqReport[keyof PrereqReport]): 'ok' | 'warn' | 'bad' | 'idle' {
-  if (status.status === 'ok') return 'ok';
-  if (status.status === 'unknown') return 'idle';
-  if (status.confidence === 'user-confirmed' || status.confidence === 'not-verifiable') return 'warn';
-  return 'bad';
-}
+import { Button, Code, Field, Modal, ProgressBar, SectionHeader } from './ui';
 
 export function SettingsModal({
   prereqs,
@@ -33,7 +20,7 @@ export function SettingsModal({
   const [spotifyClientSecret, setSpotifyClientSecret] = useState('');
   const [discordResult, setDiscordResult] = useState<DiscordValidation | null>(null);
   const [spotifyResult, setSpotifyResult] = useState<SpotifyValidation | null>(null);
-  const [busy, setBusy] = useState<'scan' | 'discord' | 'spotify' | 'commands' | null>(null);
+  const [busy, setBusy] = useState<'discord' | 'spotify' | 'commands' | null>(null);
   const [tunnelBusy, setTunnelBusy] = useState(false);
   const [tunnel, setTunnel] = useState<TunnelStatus>({ running: false });
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
@@ -92,12 +79,6 @@ export function SettingsModal({
     setBusy(null);
   };
 
-  const scan = async (): Promise<void> => {
-    setBusy('scan');
-    onPrereqs(await api.prereqsScan());
-    setBusy(null);
-  };
-
   const installCable = async (): Promise<void> => {
     setInstallingCable(true);
     setCableInstallResult(null);
@@ -146,7 +127,6 @@ export function SettingsModal({
     setTimeout(() => setToast(null), 2200);
   };
 
-  const readyCount = useMemo(() => VISIBLE_PREREQS.filter(([key]) => prereqs[key].status === 'ok').length, [prereqs]);
   const vbCableNeedsAttention = prereqs.vbcable.status !== 'ok' && prereqs.vbcable.status !== 'unknown';
   const activeRedirectUri = tunnel.callbackUrl ?? 'Start the tunnel above to get the Spotify redirect URI.';
   const discordSaved = credsStatus?.hasDiscord === true;
@@ -184,32 +164,19 @@ export function SettingsModal({
       <div className="flex items-start justify-between gap-3 border-b border-line p-5">
         <div>
           <h2 id="settings-title" className="text-base font-semibold tracking-tight">Settings</h2>
-          <p className="mt-0.5 text-[13px] text-muted">{credsSummary} · {readyCount} of {VISIBLE_PREREQS.length} checks ready</p>
+          <p className="mt-0.5 text-[13px] text-muted">{credsSummary}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
 
       <div className="min-h-0 flex-1 space-y-6 overflow-auto p-5">
           <section className="space-y-3">
-            <SectionHeader
-              label="Installed status"
-              action={
-                <Button variant="ghost" size="sm" disabled={busy === 'scan'} onClick={() => void scan()}>
-                  {busy === 'scan' ? 'Checking…' : 'Re-check'}
-                </Button>
-              }
-            />
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {VISIBLE_PREREQS.map(([key, label]) => (
-                <Pill key={key} tone={prereqTone(prereqs[key])} label={label} detail={prereqs[key].detail} />
-              ))}
-            </div>
             {vbCableNeedsAttention && (
               <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm">
-                <div className="font-semibold text-danger">VB-Cable issue detected</div>
-                <div className="mt-1 text-muted">{prereqs.vbcable.detail ?? 'VB-Audio Virtual Cable was not detected.'}</div>
+                <div className="font-semibold text-danger">Audio setup needs attention</div>
+                <div className="mt-1 text-muted">Greenroom could not access the virtual audio device it needs.</div>
                 <Button className="mt-3" variant="ghost" disabled={installingCable} onClick={() => void installCable()}>
-                  {installingCable ? 'Installing…' : 'Install VB-Cable'}
+                  {installingCable ? 'Repairing…' : 'Repair audio setup'}
                 </Button>
                 {cableInstallResult && (
                   <p className={`mt-2 text-xs ${cableInstallResult.ok ? 'text-accent' : 'text-danger'}`}>{cableInstallResult.message}</p>
