@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
-import { Button, Code, Field, Modal, Pill, SectionHeader } from './ui';
+import { useUpdater } from '../lib/useUpdater';
+import { Button, Code, Field, Modal, Pill, ProgressBar, SectionHeader } from './ui';
 
 const VISIBLE_PREREQS = [
   ['ffmpeg', 'FFmpeg'],
@@ -41,6 +42,7 @@ export function SettingsModal({
   const [credsStatus, setCredsStatus] = useState<CredsStatus | null>(null);
   const [installingCable, setInstallingCable] = useState(false);
   const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
+  const update = useUpdater();
 
   useEffect(() => {
     void api.tunnelStatus().then(setTunnel);
@@ -155,6 +157,27 @@ export function SettingsModal({
     const opened = await api.diagnosticsOpen(result.path);
     showToast(opened.ok ? 'ok' : 'bad', opened.ok ? 'Diagnostics report opened.' : (opened.error ?? 'Diagnostics report was created, but could not be opened.'));
   };
+
+  const checkForUpdates = async (): Promise<void> => {
+    await api.updaterCheck();
+  };
+
+  const updateDetail = (() => {
+    switch (update.phase) {
+      case 'checking':
+        return 'Checking for updates…';
+      case 'available':
+        return `Version ${update.version ?? ''} is available. Downloading in the background.`;
+      case 'downloading':
+        return `Downloading${update.percent === undefined ? '…' : ` · ${Math.round(update.percent)}%`}`;
+      case 'downloaded':
+        return `Version ${update.version ?? ''} is ready. Restart Greenroom to install it.`;
+      case 'error':
+        return update.error ?? 'Could not check for updates.';
+      default:
+        return update.lastCheckedAt ? `Up to date · checked ${new Date(update.lastCheckedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Updates download automatically when available.';
+    }
+  })();
 
   return (
     <Modal size="md" onClose={onClose} labelledBy="settings-title">
@@ -271,6 +294,34 @@ export function SettingsModal({
                 {busy === 'commands' ? 'Registering…' : 'Register slash commands'}
               </Button>
               {commandMessage && <span className="text-sm text-muted">{commandMessage}</span>}
+            </div>
+          </section>
+
+          <section className="space-y-3 border-t border-line pt-5">
+            <SectionHeader
+              label="About & updates"
+              detail={`greenroom ${update.currentVersion ? `v${update.currentVersion}` : ''}`}
+              action={
+                update.phase === 'downloaded' ? (
+                  <Button size="sm" onClick={() => void api.updaterInstall()}>Restart to update</Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={!update.supported || update.phase === 'checking' || update.phase === 'downloading'}
+                    onClick={() => void checkForUpdates()}
+                  >
+                    {update.phase === 'checking' ? 'Checking…' : 'Check for updates'}
+                  </Button>
+                )
+              }
+            />
+            <div className={`rounded-lg border p-3 text-xs ${update.phase === 'error' ? 'border-danger/35 bg-danger/10 text-danger' : 'border-line bg-sunken text-muted'}`}>
+              <p>{update.supported ? updateDetail : 'Automatic updates are available in the installed Windows app.'}</p>
+              {update.phase === 'downloading' && <div className="mt-3"><ProgressBar value={update.percent ?? 0} /></div>}
+              {update.phase === 'error' && update.supported && (
+                <Button className="mt-3" variant="ghost" size="sm" onClick={() => void checkForUpdates()}>Retry</Button>
+              )}
             </div>
           </section>
       </div>

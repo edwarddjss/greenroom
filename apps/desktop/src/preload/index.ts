@@ -7,6 +7,7 @@ import {
   type LogLine,
   type PrereqReport,
   type ModelDownloadProgress,
+  type UpdateStatus,
 } from '@greenroom/shared';
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -36,10 +37,14 @@ const api: GreenroomIpcApi = {
   modelEnsure: () => ipcRenderer.invoke(IPC.modelEnsure),
   diagnosticsExport: () => ipcRenderer.invoke(IPC.diagnosticsExport),
   diagnosticsOpen: (path: string) => ipcRenderer.invoke(IPC.diagnosticsOpen, path),
+  updaterGetStatus: () => ipcRenderer.invoke(IPC.updaterGetStatus),
+  updaterCheck: () => ipcRenderer.invoke(IPC.updaterCheck),
+  updaterInstall: () => ipcRenderer.invoke(IPC.updaterInstall),
   onEngineState: (cb) => subscribe<EngineSnapshot>(IPC_EVENT.engineState, cb),
   onEngineLog: (cb) => subscribe<LogLine[]>(IPC_EVENT.engineLog, cb),
   onPrereqs: (cb) => subscribe<PrereqReport>(IPC_EVENT.prereqs, cb),
   onModelProgress: (cb) => subscribe<ModelDownloadProgress>(IPC_EVENT.modelProgress, cb),
+  onUpdaterStatus: (cb) => subscribe<UpdateStatus>(IPC_EVENT.updaterStatus, cb),
 };
 
 contextBridge.exposeInMainWorld('greenroom', api);

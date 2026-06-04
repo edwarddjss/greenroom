@@ -17,6 +17,7 @@ import { dataDir, ffmpegPath, engineEntry } from './paths';
 import { buildEngineEnv } from './engine-env';
 import { tunnelManager } from './tunnel';
 import { installVbCable } from './vbcable';
+import { updaterManager } from './updater';
 
 type WinGetter = () => BrowserWindow | null;
 const COMMAND_REGISTRATION_TIMEOUT_MS = 30_000;
@@ -171,4 +172,7 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     shell.showItemInFolder(path);
     return { ok: true };
   });
+  ipcMain.handle(IPC.updaterGetStatus, () => updaterManager.getStatus());
+  ipcMain.handle(IPC.updaterCheck, () => updaterManager.check(true));
+  ipcMain.handle(IPC.updaterInstall, () => updaterManager.installNow());
 }

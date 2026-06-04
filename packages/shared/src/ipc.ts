@@ -78,6 +78,17 @@ export interface VbCableInstallResult {
   error?: string;
 }
 
+export interface UpdateStatus {
+  phase: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+  currentVersion: string;
+  supported: boolean;
+  version?: string;
+  percent?: number;
+  error?: string;
+  userInitiated?: boolean;
+  lastCheckedAt?: number;
+}
+
 /** Full supervisor snapshot streamed to the renderer dashboard. */
 export interface EngineSnapshot {
   state: EngineState;
@@ -114,10 +125,14 @@ export interface GreenroomIpcApi {
   modelEnsure(): Promise<{ present: boolean }>;
   diagnosticsExport(): Promise<{ path: string }>;
   diagnosticsOpen(path: string): Promise<{ ok: boolean; error?: string }>;
+  updaterGetStatus(): Promise<UpdateStatus>;
+  updaterCheck(): Promise<UpdateStatus>;
+  updaterInstall(): Promise<void>;
   onEngineState(cb: (snapshot: EngineSnapshot) => void): () => void;
   onEngineLog(cb: (lines: LogLine[]) => void): () => void;
   onPrereqs(cb: (report: PrereqReport) => void): () => void;
   onModelProgress(cb: (progress: ModelDownloadProgress) => void): () => void;
+  onUpdaterStatus(cb: (status: UpdateStatus) => void): () => void;
 }
 
 /** ipcRenderer.invoke channel names (request/response). */
@@ -142,6 +157,9 @@ export const IPC = {
   modelEnsure: 'model:ensure',
   diagnosticsExport: 'diagnostics:export',
   diagnosticsOpen: 'diagnostics:open',
+  updaterGetStatus: 'updater:getStatus',
+  updaterCheck: 'updater:check',
+  updaterInstall: 'updater:install',
 } as const;
 
 /** main -> renderer push channels (events). */
@@ -150,6 +168,7 @@ export const IPC_EVENT = {
   engineLog: 'event:engineLog',
   prereqs: 'event:prereqs',
   modelProgress: 'event:modelProgress',
+  updaterStatus: 'event:updaterStatus',
 } as const;
 
 export const EMPTY_PREREQS: PrereqReport = {

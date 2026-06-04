@@ -1,10 +1,10 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
-import { autoUpdater } from 'electron-updater';
 import { createSupervisor, registerIpc } from './ipc';
 import type { Supervisor } from './supervisor';
 import { initVault } from './vault';
 import { tunnelManager } from './tunnel';
+import { updaterManager } from './updater';
 
 let win: BrowserWindow | null = null;
 let supervisor: Supervisor | null = null;
@@ -50,13 +50,7 @@ app.whenReady().then(async () => {
   supervisor = createSupervisor(getWin);
   registerIpc(supervisor, getWin);
   createWindow();
-
-  // Pull updates from the GitHub Releases feed in packaged builds only.
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
-      console.error('[updater] check failed:', err);
-    });
-  }
+  updaterManager.initialize(getWin);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
