@@ -3,6 +3,7 @@ import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, T
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { useUpdater } from '../lib/useUpdater';
+import { ExternalLink, LifeBuoy } from 'lucide-react';
 import { Button, Code, Field, Modal, ProgressBar, SectionHeader } from './ui';
 
 export function SettingsModal({
@@ -186,13 +187,6 @@ export function SettingsModal({
                 )}
               </div>
             )}
-            <div className="rounded-lg border border-line bg-sunken p-3 text-sm">
-              <div className="font-medium">Diagnostics</div>
-              <p className="mt-1 text-xs text-muted">
-                Exports a local JSON support report with platform info, app versions, prerequisite status, model presence, and which credentials are set. It does not include token values.
-              </p>
-              <Button className="mt-3" variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Export diagnostics</Button>
-            </div>
           </section>
 
           <section className="space-y-3">
@@ -232,8 +226,8 @@ export function SettingsModal({
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-3">
               <SectionHeader label="Discord bot" action={<SavedBadge saved={discordSaved} />} />
-              <Field label="Bot token" mono type="password" placeholder={discordSaved ? 'Saved — leave blank to keep' : 'New bot token'} value={discordToken} onChange={(e) => setDiscordToken(e.target.value)} />
-              <Field label="Application ID" mono placeholder={discordSaved ? 'Saved — leave blank to keep' : 'Application ID'} value={discordClientId} onChange={(e) => setDiscordClientId(e.target.value)} />
+              <Field label={discordSaved ? 'Replace bot token' : 'Bot token'} mono type="password" placeholder={discordSaved ? 'Enter a new token to replace the saved token' : 'New bot token'} value={discordToken} onChange={(e) => setDiscordToken(e.target.value)} />
+              <Field label={discordSaved ? 'Replace Application ID' : 'Application ID'} mono placeholder={discordSaved ? 'Enter a new ID to replace the saved ID' : 'Application ID'} value={discordClientId} onChange={(e) => setDiscordClientId(e.target.value)} />
               <div className="flex flex-wrap gap-2">
                 <Button disabled={!hasDiscordDraft || busy === 'discord'} onClick={() => void saveDiscord()}>
                   {busy === 'discord' ? 'Saving…' : 'Validate & save'}
@@ -248,8 +242,8 @@ export function SettingsModal({
             <div className="space-y-3">
               <SectionHeader label="Spotify app" action={<SavedBadge saved={spotifySaved} />} />
               <Code className={`block break-all whitespace-normal ${tunnel.callbackUrl ? '' : 'text-muted'}`}>{activeRedirectUri}</Code>
-              <Field label="Client ID" mono placeholder={spotifySaved ? 'Saved — leave blank to keep' : 'New client ID'} value={spotifyClientId} onChange={(e) => setSpotifyClientId(e.target.value)} />
-              <Field label="Client secret" mono type="password" placeholder={spotifySaved ? 'Saved — leave blank to keep' : 'New client secret'} value={spotifyClientSecret} onChange={(e) => setSpotifyClientSecret(e.target.value)} />
+              <Field label={spotifySaved ? 'Replace Client ID' : 'Client ID'} mono placeholder={spotifySaved ? 'Enter a new ID to replace the saved ID' : 'New client ID'} value={spotifyClientId} onChange={(e) => setSpotifyClientId(e.target.value)} />
+              <Field label={spotifySaved ? 'Replace Client secret' : 'Client secret'} mono type="password" placeholder={spotifySaved ? 'Enter a new secret to replace the saved secret' : 'New client secret'} value={spotifyClientSecret} onChange={(e) => setSpotifyClientSecret(e.target.value)} />
               <Button disabled={!hasSpotifyDraft || busy === 'spotify'} onClick={() => void saveSpotify()}>
                 {busy === 'spotify' ? 'Saving…' : 'Validate & save'}
               </Button>
@@ -292,6 +286,24 @@ export function SettingsModal({
               {update.phase === 'error' && update.supported && (
                 <Button className="mt-3" variant="ghost" size="sm" onClick={() => void checkForUpdates()}>Retry</Button>
               )}
+            </div>
+          </section>
+
+          <section className="space-y-3 border-t border-line pt-5">
+            <SectionHeader
+              label="Get support"
+              detail="Create a privacy-safe report when something is not working."
+              icon={<LifeBuoy size={15} strokeWidth={2.1} aria-hidden="true" />}
+            />
+            <p className="text-xs leading-relaxed text-muted">
+              The report includes app and system status, but never your Discord token, Spotify secret, or linked-account tokens. Review it before attaching it to an issue.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Create support report</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.open('https://github.com/edwarddjss/greenroom/issues/new', '_blank')}>
+                <ExternalLink size={14} strokeWidth={2.1} aria-hidden="true" />
+                Report an issue
+              </Button>
             </div>
           </section>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EngineSnapshot, EngineState, LogLine } from '@greenroom/shared';
 import { EMPTY_PREREQS } from '@greenroom/shared';
-import { AlertTriangle, CheckCircle2, Copy, MessageCircle, Power, Settings, Square, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, MessageCircle, Power, Settings, Square, UserPlus } from 'lucide-react';
 import { api } from '../lib/api';
 import { Button, Card, Code, Modal, SectionHeader, StatusDot } from './ui';
 import { SettingsModal } from './SettingsModal';
@@ -22,14 +22,9 @@ interface FriendlyLogItem {
   tone: 'ok' | 'warn' | 'bad' | 'idle';
 }
 
-function formatSupportLogs(logs: LogLine[]): string {
-  return logs
-    .map((line) => {
-      const time = new Date(line.ts).toLocaleTimeString();
-      const item = friendlyLog(line);
-      return item.detail ? `[${time}] ${item.title}: ${item.detail}` : `[${time}] ${item.title}`;
-    })
-    .join('\n');
+interface ActivityItem extends FriendlyLogItem {
+  key: string;
+  ts: number;
 }
 
 function isAudioEngineLine(text: string): boolean {
@@ -101,17 +96,6 @@ function friendlyLog(line: LogLine): FriendlyLogItem {
   return { title: text.replace(/^\[[^\]]+\]\s*/, ''), tone: line.level === 'error' ? 'bad' : 'idle' };
 }
 
-function userFacingLogs(logs: LogLine[]): LogLine[] {
-  const unique = new Map<string, LogLine>();
-  for (const line of logs) {
-    if (!isUserFacingLog(line)) continue;
-    const item = friendlyLog(line);
-    const key = `${item.title}\n${item.detail ?? ''}`;
-    unique.set(key, line);
-  }
-  return [...unique.values()].sort((a, b) => a.ts - b.ts);
-}
-
 export function Dashboard(): JSX.Element {
   const [snapshot, setSnapshot] = useState<EngineSnapshot>({
     state: 'idle',
@@ -119,20 +103,49 @@ export function Dashboard(): JSX.Element {
     spotifyLinked: false,
     captureActive: false,
   });
-  const [logs, setLogs] = useState<LogLine[]>([]);
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [vbAlertDismissed, setVbAlertDismissed] = useState(false);
-  const [followLogs, setFollowLogs] = useState(true);
-  const logScrollRef = useRef<HTMLDivElement | null>(null);
+  const snapshotRef = useRef(snapshot);
+
+  const addActivity = (item: ActivityItem): void => {
+    setActivity((prev) => [...prev.filter((entry) => entry.key !== item.key), item].slice(-50));
+  };
+
+  const applySnapshot = (next: EngineSnapshot): void => {
+    const previous = snapshotRef.current;
+    snapshotRef.current = next;
+    setSnapshot(next);
+    if (next.state === 'running' && previous.state !== 'running') {
+      addActivity({ key: 'bot-online', ts: Date.now(), title: 'Bot is online', detail: 'Ready for commands in Discord.', tone: 'ok' });
+    }
+    if (next.state === 'idle' && previous.state !== 'idle') {
+      addActivity({ key: 'bot-offline', ts: Date.now(), title: 'Bot stopped', detail: 'Start it again when you want to use Discord commands.', tone: 'idle' });
+    }
+    if (next.spotifyLinked && !previous.spotifyLinked) {
+      addActivity({ key: 'spotify-linked', ts: Date.now(), title: 'Spotify account linked', detail: 'Spotify requests are ready.', tone: 'ok' });
+    }
+    if (next.captureActive && !previous.captureActive) {
+      addActivity({ key: 'music-streaming', ts: Date.now(), title: 'Music is streaming', detail: 'Spotify audio is playing in Discord.', tone: 'ok' });
+    }
+    if (next.lastError && next.lastError !== previous.lastError) {
+      addActivity({ key: `error-${next.lastError}`, ts: Date.now(), title: 'Something needs attention', detail: next.lastError, tone: 'bad' });
+    }
+  };
 
   useEffect(() => {
-    void api.engineGetSnapshot().then(setSnapshot);
+    void api.engineGetSnapshot().then(applySnapshot);
     void api.prereqsScan();
     void api.discordInviteUrl().then(setInviteUrl);
-    const offState = api.onEngineState(setSnapshot);
-    const offLog = api.onEngineLog((lines) => setLogs((prev) => [...prev, ...lines].slice(-500)));
+    const offState = api.onEngineState(applySnapshot);
+    const offLog = api.onEngineLog((lines) => {
+      for (const line of lines) {
+        if (!isUserFacingLog(line)) continue;
+        const item = friendlyLog(line);
+        addActivity({ ...item, key: `${item.title}\n${item.detail ?? ''}`, ts: line.ts });
+      }
+    });
     const offPrereqs = api.onPrereqs((prereqs) => setSnapshot((prev) => ({ ...prev, prereqs })));
     return () => {
       offState();
@@ -141,29 +154,15 @@ export function Dashboard(): JSX.Element {
     };
   }, []);
 
-  useEffect(() => {
-    if (followLogs && logScrollRef.current) {
-      logScrollRef.current.scrollTo({ top: logScrollRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [logs, followLogs]);
-
-  const handleLogScroll = (): void => {
-    const el = logScrollRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setFollowLogs(distanceFromBottom < 48);
-  };
-
   const running = snapshot.state === 'running' || snapshot.state === 'degraded' || snapshot.state === 'starting';
   const stateInfo = STATE_LABEL[snapshot.state];
   const vbCableProblem = snapshot.prereqs.vbcable.status !== 'ok' && snapshot.prereqs.vbcable.status !== 'unknown';
-  const visibleLogs = userFacingLogs(logs);
   const needsSetup = !snapshot.spotifyLinked;
-  const homeTone = snapshot.lastError ? 'bad' : needsSetup ? 'warn' : snapshot.captureActive ? 'ok' : stateInfo.tone;
+  const homeTone = snapshot.lastError ? 'bad' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
   const homeTitle = snapshot.lastError
     ? 'Something needs attention'
     : !running
-      ? 'Bot is stopped'
+      ? 'Bot is off'
       : needsSetup
         ? 'Spotify needs linking'
         : snapshot.captureActive
@@ -178,21 +177,6 @@ export function Dashboard(): JSX.Element {
         : snapshot.captureActive
           ? 'Use /queue to add more music or /clearqueue to empty a long playlist.'
           : 'Use /play with a song name, playlist, or Spotify link.';
-  const copyLogs = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(formatSupportLogs(visibleLogs));
-      setCopyState('copied');
-    } catch {
-      setCopyState('failed');
-    }
-    setTimeout(() => setCopyState('idle'), 1800);
-  };
-
-  const jumpToLatest = (): void => {
-    setFollowLogs(true);
-    logScrollRef.current?.scrollTo({ top: logScrollRef.current.scrollHeight, behavior: 'smooth' });
-  };
-
   return (
     <div className="mx-auto h-full max-w-5xl overflow-auto p-4 sm:p-6">
       <div className="flex min-h-full flex-col gap-4">
@@ -213,12 +197,12 @@ export function Dashboard(): JSX.Element {
             Settings
           </Button>
           {running ? (
-            <Button variant="danger" onClick={() => void api.engineStop().then(setSnapshot)}>
+            <Button variant="danger" onClick={() => void api.engineStop().then(applySnapshot)}>
               <Square size={15} strokeWidth={2.2} aria-hidden="true" />
               Stop
             </Button>
           ) : (
-            <Button onClick={() => void api.engineStart().then(setSnapshot)}>
+            <Button onClick={() => void api.engineStart().then(applySnapshot)}>
               <Power size={16} strokeWidth={2.1} aria-hidden="true" />
               Start bot
             </Button>
@@ -236,13 +220,20 @@ export function Dashboard(): JSX.Element {
                     ? 'border-danger/25 bg-danger/10'
                     : homeTone === 'ok'
                       ? 'border-accent/25 bg-accent/10'
+                      : homeTone === 'idle'
+                        ? 'border-line bg-white/[0.03]'
                       : 'border-warn/25 bg-warn/10'
                 }`}
               >
                 {snapshot.lastError ? (
                   <AlertTriangle size={20} strokeWidth={2.1} className="text-danger" aria-hidden="true" />
                 ) : (
-                  <CheckCircle2 size={20} strokeWidth={2.1} className={homeTone === 'ok' ? 'text-accent' : 'text-warn'} aria-hidden="true" />
+                  <CheckCircle2
+                    size={20}
+                    strokeWidth={2.1}
+                    className={homeTone === 'ok' ? 'text-accent' : homeTone === 'idle' ? 'text-muted' : 'text-warn'}
+                    aria-hidden="true"
+                  />
                 )}
               </div>
               <div className="min-w-0">
@@ -253,7 +244,11 @@ export function Dashboard(): JSX.Element {
 
             <div className="space-y-2">
               <StatusRow tone={stateInfo.tone} label="Bot" value={running ? 'Online' : stateInfo.label} />
-              <StatusRow tone={snapshot.spotifyLinked ? 'ok' : 'warn'} label="Spotify account" value={snapshot.spotifyLinked ? 'Linked' : 'Needs /login'} />
+              <StatusRow
+                tone={!running ? 'idle' : snapshot.spotifyLinked ? 'ok' : 'warn'}
+                label="Spotify"
+                value={!running ? 'Checked on start' : snapshot.spotifyLinked ? 'Linked' : 'Needs /login'}
+              />
               <StatusRow
                 tone={snapshot.captureActive ? 'ok' : 'idle'}
                 label="Audio"
@@ -279,53 +274,28 @@ export function Dashboard(): JSX.Element {
         <Card className="flex min-h-[360px] flex-col">
           <SectionHeader
             label="Recent activity"
-            detail="Filtered events for troubleshooting."
+            detail="What Greenroom has done this session."
             className="mb-3"
-            action={
-              <div className="flex flex-wrap justify-end gap-2">
-                {!followLogs && (
-                  <Button variant="ghost" size="sm" onClick={jumpToLatest}>
-                    Latest
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" disabled={visibleLogs.length === 0} onClick={() => void copyLogs()}>
-                  <Copy size={14} strokeWidth={2.1} aria-hidden="true" />
-                  {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy support log'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setLogs([]);
-                    setFollowLogs(true);
-                  }}
-                >
-                  <Trash2 size={14} strokeWidth={2.1} aria-hidden="true" />
-                  Clear
-                </Button>
-              </div>
-            }
           />
-          <div ref={logScrollRef} onScroll={handleLogScroll} className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
-            {visibleLogs.length === 0 ? (
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
+            {activity.length === 0 ? (
               <div className="grid h-full place-items-center text-center text-muted">
                 <div>
-                  <div className="text-sm font-medium text-text/80">No activity yet</div>
-                  <div className="mt-1 text-xs">Start the bot, then use Discord commands.</div>
+                  <div className="text-sm font-medium text-text/80">{running ? 'Ready for your first request' : 'Nothing happening yet'}</div>
+                  <div className="mt-1 text-xs">{running ? 'Use /play in Discord to start music.' : 'Start the bot when you want to use it.'}</div>
                 </div>
               </div>
             ) : (
-              visibleLogs.map((line, i) => {
-                const item = friendlyLog(line);
+              activity.map((item) => {
                 return (
-                <div key={i} className="mb-2 flex gap-3 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
+                <div key={item.key} className="mb-2 flex gap-3 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
                   <div className="pt-1">
                     <StatusDot tone={item.tone} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-medium">{item.title}</span>
-                      <span className="text-xs text-muted">{new Date(line.ts).toLocaleTimeString()}</span>
+                      <span className="text-xs text-muted">{new Date(item.ts).toLocaleTimeString()}</span>
                     </div>
                     {item.detail && <div className="mt-0.5 truncate text-xs text-muted">{item.detail}</div>}
                   </div>

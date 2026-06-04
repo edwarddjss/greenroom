@@ -1,4 +1,4 @@
-import { ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
+import { app, ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import { join, dirname } from 'node:path';
 import {
@@ -14,7 +14,7 @@ import { scanPrereqs } from './prereqs';
 import { validateDiscord, validateSpotify } from './validators';
 import { loadCreds, saveCreds, credsStatus } from './vault';
 import { ensureModel, isModelPresent } from './model';
-import { dataDir, ffmpegPath, engineEntry } from './paths';
+import { dataDir, engineEntry } from './paths';
 import { buildEngineEnv } from './engine-env';
 import { tunnelManager } from './tunnel';
 import { installVbCable } from './vbcable';
@@ -85,8 +85,7 @@ async function exportDiagnostics(): Promise<{ path: string }> {
     ts: new Date().toISOString(),
     platform: process.platform,
     arch: process.arch,
-    versions: { electron: process.versions.electron, node: process.versions.node },
-    ffmpegPath: ffmpegPath(),
+    versions: { app: app.getVersion(), electron: process.versions.electron, node: process.versions.node },
     modelPresent: isModelPresent(),
     prereqs,
     creds: credsStatus(),

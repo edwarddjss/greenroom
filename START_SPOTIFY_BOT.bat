@@ -1,7 +1,7 @@
 @echo off
 title Spotify Bot - Launcher
 echo ====================================================
-echo 🎙️  Spotify Discord Streaming Bot
+echo greenroom
 echo ====================================================
 echo.
 echo [1/2] Deploying latest Discord slash commands...

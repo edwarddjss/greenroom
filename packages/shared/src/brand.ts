@@ -4,7 +4,7 @@ export const BRAND = {
   domain: 'greenroom',
   tagline: 'Stream your Spotify into any Discord voice channel.',
   description: 'The self-hosted Spotify-to-Discord music bot that runs on your own Windows PC.',
-  github: 'https://github.com/edwarddjss/spotify-discord-bot',
+  github: 'https://github.com/edwarddjss/greenroom',
   colors: {
     spotify: '#1DB954',
     discord: '#5865F2',

@@ -40,10 +40,10 @@ The site is a single static file at `docs/index.html`. Enable it once:
 
 1. Repo **Settings → Pages**.
 2. **Source: Deploy from a branch**, branch **`main`**, folder **`/docs`**, Save.
-3. It publishes at `https://edwarddjss.github.io/spotify-discord-bot/`.
+3. It publishes at `https://edwarddjss.github.io/greenroom/`.
 
 The page's Download buttons point at
-`https://github.com/edwarddjss/spotify-discord-bot/releases/latest`, which always
+`https://github.com/edwarddjss/greenroom/releases/latest`, which always
 resolves to the newest release, so the site needs no redeploy when you ship a new
 version.
 
