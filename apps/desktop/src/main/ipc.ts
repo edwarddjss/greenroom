@@ -19,6 +19,20 @@ import { tunnelManager } from './tunnel';
 import { installVbCable } from './vbcable';
 
 type WinGetter = () => BrowserWindow | null;
+const COMMAND_REGISTRATION_TIMEOUT_MS = 30_000;
+
+function commandRegistrationError(output: string, code: number | undefined): string {
+  if (/\b401\b|unauthorized|invalid token/i.test(output)) {
+    return 'Discord rejected the bot credentials. Go back and check the bot token and Application ID.';
+  }
+  if (/\b403\b|missing access|missing permissions/i.test(output)) {
+    return 'Discord denied access. Check the bot permissions in the Discord Developer Portal, then try again.';
+  }
+  if (/eai_again|eai_fail|enotfound|econnreset|etimedout|network/i.test(output)) {
+    return 'Greenroom could not reach Discord. Check your internet connection and try again.';
+  }
+  return `Discord could not register slash commands${code === undefined ? '' : ` (exit code ${code})`}. Try again.`;
+}
 
 export function createSupervisor(getWin: WinGetter): Supervisor {
   return new Supervisor({
@@ -36,12 +50,29 @@ function registerCommands(): Promise<CommandRegisterResult> {
   const registerPath = join(dirname(engineEntry()), 'register-commands.js');
 
   return new Promise((resolve) => {
+    let settled = false;
+    let output = '';
     let err = '';
     const child = utilityProcess.fork(registerPath, [], { stdio: 'pipe', env });
+    const finish = (result: CommandRegisterResult): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      child.kill();
+      finish({
+        ok: false,
+        scope,
+        error: 'Discord did not respond within 30 seconds. Check your connection and try again.',
+      });
+    }, COMMAND_REGISTRATION_TIMEOUT_MS);
+    child.stdout?.on('data', (d: Buffer) => (output += d.toString()));
     child.stderr?.on('data', (d: Buffer) => (err += d.toString()));
     child.on('exit', (code) => {
-      if (code === 0) resolve({ ok: true, scope });
-      else resolve({ ok: false, scope, error: err.slice(0, 500) || `Registration exited with code ${code}.` });
+      if (code === 0) finish({ ok: true, scope });
+      else finish({ ok: false, scope, error: commandRegistrationError(`${err}\n${output}`, code) });
     });
   });
 }

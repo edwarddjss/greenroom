@@ -50,6 +50,7 @@ async function register(): Promise<void> {
       await rest.put(Routes.applicationCommands(config.discordClientId), { body: commands });
       console.log('\x1b[32m[Deploy] Global commands registered.\x1b[0m');
     }
+    process.exit(0);
   } catch (error) {
     console.error('[Deploy] Failed to register commands:', error);
     process.exit(1);

@@ -110,9 +110,15 @@ export function SettingsModal({
 
   const registerCommands = async (): Promise<void> => {
     setBusy('commands');
-    const result = await api.commandsRegister();
-    setCommandMessage(result.ok ? `Registered ${result.scope} commands.` : (result.error ?? 'Command registration failed.'));
-    setBusy(null);
+    setCommandMessage(null);
+    try {
+      const result = await api.commandsRegister();
+      setCommandMessage(result.ok ? 'Slash commands are ready.' : (result.error ?? 'Could not register slash commands. Try again.'));
+    } catch {
+      setCommandMessage('Could not register slash commands. Try again.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const startTunnel = async (): Promise<void> => {

@@ -385,17 +385,19 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
               disabled={commandsBusy}
               onClick={() => {
                 setCommandsBusy(true);
+                setCommandResult(null);
                 void api.commandsRegister()
                   .then((r) =>
                     setCommandResult({
                       ok: r.ok,
-                      message: r.ok ? `Registered (${r.scope}).` : (r.error ?? 'Failed.'),
+                      message: r.ok ? 'Slash commands are ready.' : (r.error ?? 'Could not register slash commands. Try again.'),
                     }),
                   )
+                  .catch(() => setCommandResult({ ok: false, message: 'Could not register slash commands. Try again.' }))
                   .finally(() => setCommandsBusy(false));
               }}
             >
-              {commandsBusy ? 'Registering...' : 'Register commands'}
+              {commandsBusy ? 'Registering…' : commandResult && !commandResult.ok ? 'Retry registration' : 'Register commands'}
             </Button>
             {commandResult && (
               <p className={commandResult.ok ? 'text-accent' : 'text-danger'}>{commandResult.message}</p>
