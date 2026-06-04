@@ -29,7 +29,7 @@ class UpdaterManager {
     if (!app.isPackaged) return;
 
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.on('checking-for-update', () => {
       this.setStatus({ phase: 'checking' });
     });
@@ -84,7 +84,7 @@ class UpdaterManager {
   }
 
   installNow(): void {
-    if (this.status.phase === 'downloaded') autoUpdater.quitAndInstall(false, true);
+    if (this.status.phase === 'downloaded') autoUpdater.quitAndInstall(true, true);
   }
 
   private setStatus(update: Partial<UpdateStatus> & Pick<UpdateStatus, 'phase'>): void {

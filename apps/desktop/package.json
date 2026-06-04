@@ -1,6 +1,6 @@
 {
   "name": "@greenroom/desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "greenroom desktop client (Electron) for Windows",
   "main": "out/main/index.js",
@@ -47,9 +47,8 @@
       "artifactName": "greenroom-Setup-${arch}.${ext}"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "greenroom"
