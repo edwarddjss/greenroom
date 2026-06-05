@@ -187,6 +187,10 @@ export class Supervisor {
         this.captureActive = true;
         this.emit();
         break;
+      case 'voice_stopped':
+        this.captureActive = false;
+        this.emit();
+        break;
       case 'spotify_profiles_loaded':
         this.spotifyLinked = typeof data?.count === 'number' && data.count > 0;
         this.emit();

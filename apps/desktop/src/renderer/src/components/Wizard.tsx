@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { Button, Card, Code, Field, Modal, Pill, ProgressBar } from './ui';
 
 type StepId = 'welcome' | 'vbcable' | 'routing' | 'discord' | 'spotify' | 'commands' | 'invite' | 'model' | 'finish';
-const ORDER: StepId[] = ['welcome', 'vbcable', 'routing', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
+const ORDER: StepId[] = ['welcome', 'vbcable', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
 const WIZARD_STEP_KEY = 'greenroom:onboarding-step';
 const TITLES: Record<StepId, string> = {
   welcome: 'Welcome',
@@ -70,7 +70,7 @@ const GUIDES: Record<GuideId, Guide> = {
   },
   routing: {
     title: 'Route Spotify audio',
-    summary: 'Set only Spotify to the virtual cable so greenroom captures music without routing every system sound.',
+    summary: 'Fallback only: greenroom normally routes Spotify for you while the bot is streaming.',
     primaryLabel: 'Open Windows volume mixer',
     primaryUrl: 'ms-settings:apps-volume',
     steps: [
@@ -264,7 +264,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
         {step === 'welcome' && (
           <div className="space-y-3 text-sm leading-relaxed">
             <p>greenroom streams your own Spotify audio into a Discord voice channel from your PC. This setup connects the two end to end.</p>
-            <p className="text-muted">You'll need: a Discord account, Spotify Premium, and about 10 minutes. We'll install an audio cable and walk through two developer portals.</p>
+            <p className="text-muted">You'll need: a Discord account, Spotify Premium, and about 10 minutes. We'll set up the audio cable and walk through two developer portals.</p>
             <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
               <Pill tone={prereqs.ffmpeg.status === 'ok' ? 'ok' : 'idle'} label="FFmpeg" detail={prereqs.ffmpeg.detail} />
               <Pill tone={prereqs.vbcable.status === 'ok' ? 'ok' : 'idle'} label="VB-Cable" detail={prereqs.vbcable.detail} />
@@ -291,7 +291,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             {cableInstallResult && (
               <p className={`text-xs ${cableInstallResult.ok ? 'text-accent' : 'text-danger'}`}>{cableInstallResult.message}</p>
             )}
-            <p className="text-muted text-xs">greenroom downloads and extracts the official driver for you. Approve the Windows admin prompt, click Install, then restart Windows. Setup resumes here after reboot.</p>
+            <p className="text-muted text-xs">greenroom downloads and extracts the official driver for you. Approve the Windows admin prompt, click Install, then restart Windows. When you stream, greenroom will switch Spotify to this cable and restore it when you stop.</p>
           </div>
         )}
 
@@ -548,7 +548,7 @@ function FinishStep(): JSX.Element {
   return (
     <div className="space-y-4 text-sm">
       <p>Last step: verify playback. Start the bot, run <Code>/login</Code> in Discord, join a voice channel, and run <Code>/play</Code>.</p>
-      <p className="text-muted text-xs">Success = the dashboard shows Audio streaming with a non-silent level. If it's silent, your Spotify routing (step 3) is off.</p>
+      <p className="text-muted text-xs">Success = Discord hears Spotify and the dashboard shows active playback. If it is silent, open support and greenroom will include the audio-routing error.</p>
     </div>
   );
 }

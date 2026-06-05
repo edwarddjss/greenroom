@@ -13,6 +13,7 @@ import type { AudioCaptureEngine, CaptureHandle } from './audio.js';
 import type { SpotifyController } from './spotify.js';
 import type { AudioEffects } from './types.js';
 import type { GreenroomConfig } from './config.js';
+import { restoreSpotifyOutput, routeSpotifyToCapture } from './windows-audio-router.js';
 
 export interface VoiceSessionDeps {
   audioEngine: AudioCaptureEngine;
@@ -32,6 +33,9 @@ export class VoiceSessionManager {
   private currentChannelId: string | null = null;
   private activeSpotifyUserId: string | null = null;
   private autoDisconnectTimer: NodeJS.Timeout | null = null;
+  private cleanupInProgress = false;
+  private spotifyAudioRouted = false;
+  private spotifyRouteAttempted = false;
   activeEffects: AudioEffects = { bassboost: false, speed: 1.0 };
 
   constructor(deps: VoiceSessionDeps) {
@@ -84,6 +88,9 @@ export class VoiceSessionManager {
   }
 
   cleanup(): void {
+    if (this.cleanupInProgress) return;
+    this.cleanupInProgress = true;
+    const hadActiveSession = this.voiceConnection !== null || this.audioEngine.isActive() || this.spotifyAudioRouted;
     if (this.autoDisconnectTimer) {
       clearTimeout(this.autoDisconnectTimer);
       this.autoDisconnectTimer = null;
@@ -100,7 +107,17 @@ export class VoiceSessionManager {
     }
     this.currentChannelId = null;
     this.activeSpotifyUserId = null;
+    this.spotifyRouteAttempted = false;
+    if (this.spotifyAudioRouted) {
+      this.spotifyAudioRouted = false;
+      void restoreSpotifyOutput(this.config.audioDevice).then((result) => {
+        if (result.ok) console.log(`[AudioRouting] ${result.message}`);
+        else console.warn(`[AudioRouting] Could not restore Spotify audio: ${result.message}`);
+      });
+    }
+    if (hadActiveSession) emitHealth('voice_stopped', {});
     console.log('[Bot] Voice connection and audio streams cleaned up.');
+    this.cleanupInProgress = false;
   }
 
   private async maximizeBitrate(voiceChannel: VoiceBasedChannel, guild: Guild): Promise<void> {
@@ -172,6 +189,16 @@ export class VoiceSessionManager {
 
   async startCapture(spotifyUserId: string): Promise<CaptureHandle> {
     const targetDevice = this.spotify.getUserAudioDevice(spotifyUserId) ?? this.config.audioDevice;
+    if (!this.spotifyAudioRouted && !this.spotifyRouteAttempted) {
+      this.spotifyRouteAttempted = true;
+      const route = await routeSpotifyToCapture(targetDevice);
+      if (route.ok) {
+        if (!route.skipped) this.spotifyAudioRouted = true;
+        console.log(`[AudioRouting] ${route.message}`);
+      } else {
+        console.warn(`[AudioRouting] Could not route Spotify automatically: ${route.message}`);
+      }
+    }
     const handle = this.audioEngine.start(targetDevice, this.activeEffects);
     this.audioPlayer.play(handle.resource);
     this.activeSpotifyUserId = spotifyUserId;

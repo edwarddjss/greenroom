@@ -10,6 +10,7 @@ export type HealthEvent =
   | 'discord_ready'
   | 'ffmpeg_ready'
   | 'voice_ready'
+  | 'voice_stopped'
   | 'spotify_profiles_loaded'
   | 'spotify_auth_saved'
   | 'engine_error';

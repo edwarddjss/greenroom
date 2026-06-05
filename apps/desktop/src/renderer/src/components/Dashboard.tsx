@@ -89,6 +89,14 @@ function friendlyLog(line: LogLine): FriendlyLogItem {
   }
   if (/port .* already in use|port .* unavailable/i.test(text)) return { title: 'Spotify login port is busy', detail: 'Another app is using the login callback port.', tone: 'bad' };
   if (/spotify linked|authorization successful/i.test(text)) return { title: 'Spotify account linked', detail: 'A user completed Spotify login.', tone: 'ok' };
+  if (/\[AudioRouting\] Spotify audio is routed/i.test(text)) return { title: 'Spotify audio routed', detail: 'Spotify is now sending music to Discord.', tone: 'ok' };
+  if (/\[AudioRouting\] Spotify audio was restored/i.test(text)) return { title: 'Spotify audio restored', detail: 'Spotify is back on your normal output.', tone: 'idle' };
+  if (/\[AudioRouting\] Could not route Spotify automatically/i.test(text)) {
+    return { title: 'Spotify audio routing needs attention', detail: 'Open Spotify and try again. If it stays silent, use the support report.', tone: 'warn' };
+  }
+  if (/\[AudioRouting\] Could not restore Spotify audio/i.test(text)) {
+    return { title: 'Spotify audio did not restore', detail: 'Set Spotify back to your speakers in Windows Volume Mixer.', tone: 'warn' };
+  }
   if (isAudioEngineProblem(text)) return { title: 'Audio capture issue', detail: 'greenroom could not start the local audio stream.', tone: 'bad' };
   if (/auto-resume failed/i.test(text)) return { title: 'Spotify playback did not auto-start', detail: 'Open Spotify desktop and start playback, then try again.', tone: 'warn' };
   if (/failed|error|critical/i.test(text)) return { title: 'Something needs attention', detail: text, tone: 'bad' };
