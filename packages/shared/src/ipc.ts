@@ -81,7 +81,7 @@ export interface VbCableInstallResult {
 }
 
 export interface UpdateStatus {
-  phase: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+  phase: 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error';
   currentVersion: string;
   supported: boolean;
   version?: string;

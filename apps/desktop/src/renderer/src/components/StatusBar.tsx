@@ -15,6 +15,8 @@ export function StatusBar(): JSX.Element {
         return `Downloading update${update.percent === undefined ? '' : ` · ${Math.round(update.percent)}%`}`;
       case 'downloaded':
         return `Restart to update${update.version ? ` · v${update.version}` : ''}`;
+      case 'up-to-date':
+        return `Up to date${version ? ` · ${version}` : ''}`;
       case 'error':
         return `Retry update check${version ? ` · ${version}` : ''}`;
       default:
@@ -29,7 +31,7 @@ export function StatusBar(): JSX.Element {
     <footer className="app-no-drag flex h-8 shrink-0 items-center justify-end border-t border-line bg-bg px-4">
       <button
         className={`h-full text-[11px] transition-colors focus-visible:outline-none focus-visible:text-text ${
-          update.phase === 'downloaded'
+          update.phase === 'downloaded' || update.phase === 'up-to-date'
             ? 'font-medium text-accent hover:text-accent-hover'
             : update.phase === 'error'
               ? 'text-warn hover:text-text'
