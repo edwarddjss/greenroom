@@ -289,17 +289,16 @@ export function Dashboard(): JSX.Element {
               </div>
             </div>
 
-            <div className="-my-1">
-              <StatusRow tone={stateInfo.tone} label="Bot" value={running ? 'Online' : stateInfo.label} />
-              <StatusRow
+            {/* The headline already conveys bot state, so the chips carry only the two
+                facts it can't: whether Spotify is linked and whether audio is flowing. */}
+            <div className="flex flex-wrap gap-2">
+              <StatusChip
                 tone={!running ? 'idle' : snapshot.spotifyLinked ? 'ok' : 'warn'}
-                label="Spotify"
-                value={!running ? 'Checked on start' : snapshot.spotifyLinked ? 'Linked' : 'Needs /login'}
+                text={!running ? 'Spotify checked on start' : snapshot.spotifyLinked ? 'Spotify linked' : 'Spotify needs /login'}
               />
-              <StatusRow
+              <StatusChip
                 tone={snapshot.captureActive ? 'ok' : 'idle'}
-                label="Audio"
-                value={snapshot.captureActive ? 'Streaming' : running ? 'Starts with /play' : 'Off'}
+                text={snapshot.captureActive ? 'Audio streaming' : running ? 'Audio starts with /play' : 'Audio off'}
               />
             </div>
           </Card>
@@ -397,12 +396,20 @@ export function Dashboard(): JSX.Element {
   );
 }
 
-function StatusRow({ tone, label, value }: { tone: Tone; label: string; value: string }): JSX.Element {
+const TONE_DOT: Record<Tone, string> = {
+  ok: 'bg-accent',
+  warn: 'bg-warn',
+  bad: 'bg-danger',
+  idle: 'bg-muted',
+};
+
+/** Compact status chip: a tone dot plus a self-contained phrase. Lighter than a label/value row. */
+function StatusChip({ tone, text }: { tone: Tone; text: string }): JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-line/60 py-2 last:border-0">
-      <span className="min-w-0 truncate text-[13px] text-muted">{label}</span>
-      <span className={`shrink-0 truncate text-[13px] font-medium ${TONE_TEXT[tone]}`}>{value}</span>
-    </div>
+    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-line/70 bg-white/[0.03] px-2.5 py-1">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT[tone]}`} />
+      <span className={`truncate text-xs font-medium ${TONE_TEXT[tone]}`}>{text}</span>
+    </span>
   );
 }
 

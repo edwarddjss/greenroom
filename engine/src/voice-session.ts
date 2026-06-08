@@ -4,10 +4,11 @@ import {
   AudioPlayerStatus,
   VoiceConnectionStatus,
   entersState,
+  getVoiceConnection,
   type AudioPlayer,
   type VoiceConnection,
 } from '@discordjs/voice';
-import type { Guild, GuildMember, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, type Guild, type GuildMember, type VoiceBasedChannel, type VoiceState } from 'discord.js';
 import { emitHealth } from './health.js';
 import type { AudioCaptureEngine, CaptureHandle } from './audio.js';
 import type { SpotifyController } from './spotify.js';
@@ -22,6 +23,16 @@ export interface VoiceSessionDeps {
 }
 
 const EMPTY_CHANNEL_TIMEOUT_MS = 45_000;
+const VOICE_READY_TIMEOUT_MS = 15_000;
+const VOICE_CONNECT_ATTEMPTS = 2;
+
+function readableVoiceConnectError(err: Error | undefined): string {
+  const raw = err?.message ?? 'unknown error';
+  if (/aborted|timed out|timeout/i.test(raw)) {
+    return 'Discord voice did not connect in time. Check that the bot can Connect and Speak in that voice channel, then try again. If it still fails, restart Discord or disable VPN/firewall rules that block Discord voice.';
+  }
+  return raw;
+}
 
 export class VoiceSessionManager {
   private readonly audioEngine: AudioCaptureEngine;
@@ -176,6 +187,11 @@ export class VoiceSessionManager {
   }
 
   private attachConnectionLifecycle(connection: VoiceConnection): void {
+    connection.on('stateChange', (oldState, newState) => {
+      const oldStatus = oldState.status;
+      const newStatus = newState.status;
+      if (oldStatus !== newStatus) console.log(`[VoiceConnection] ${oldStatus} -> ${newStatus}`);
+    });
     connection.on('error', (error) => {
       console.error('[VoiceConnection] Error:', error.message);
     });
@@ -201,8 +217,45 @@ export class VoiceSessionManager {
     });
   }
 
-  private async connectWithRetry(voiceChannel: VoiceBasedChannel, guild: Guild, attempts = 3): Promise<VoiceConnection> {
+  private assertCanUseVoiceChannel(member: GuildMember, voiceChannel: VoiceBasedChannel, guild: Guild): void {
+    if (voiceChannel.type === ChannelType.GuildStageVoice) {
+      throw new Error('Greenroom needs a regular voice channel. Stage channels are not supported yet.');
+    }
+
+    const botMember = guild.members.me;
+    if (!botMember) {
+      throw new Error('Discord has not finished loading the bot permissions yet. Try again in a few seconds.');
+    }
+
+    const botPermissions = voiceChannel.permissionsFor(botMember);
+    if (!botPermissions?.has(PermissionFlagsBits.Connect)) {
+      throw new Error(`Greenroom cannot join ${voiceChannel.name}. Give the bot Connect permission in that voice channel.`);
+    }
+    if (!botPermissions.has(PermissionFlagsBits.Speak)) {
+      throw new Error(`Greenroom cannot speak in ${voiceChannel.name}. Give the bot Speak permission in that voice channel.`);
+    }
+
+    const userPermissions = voiceChannel.permissionsFor(member);
+    if (!userPermissions?.has(PermissionFlagsBits.Connect)) {
+      throw new Error(`You do not have Connect permission for ${voiceChannel.name}. Join a voice channel you can access.`);
+    }
+  }
+
+  private destroyTrackedConnection(guildId: string): void {
+    const tracked = getVoiceConnection(guildId);
+    if (tracked && tracked !== this.voiceConnection) {
+      try {
+        tracked.destroy();
+      } catch {
+        // best-effort stale connection cleanup
+      }
+    }
+  }
+
+  private async connectWithRetry(voiceChannel: VoiceBasedChannel, guild: Guild, attempts = VOICE_CONNECT_ATTEMPTS): Promise<VoiceConnection> {
     let lastError: Error | undefined;
+    this.destroyTrackedConnection(guild.id);
+
     for (let attempt = 1; attempt <= attempts; attempt++) {
       const connection = joinVoiceChannel({
         channelId: voiceChannel.id,
@@ -211,13 +264,27 @@ export class VoiceSessionManager {
         selfDeaf: true,
         selfMute: false,
       });
+      const logStateChange = (oldState: { status: string }, newState: { status: string }): void => {
+        if (oldState.status !== newState.status) {
+          console.log(`[VoiceConnection] attempt ${attempt}/${attempts}: ${oldState.status} -> ${newState.status}`);
+        }
+      };
+      const logError = (error: Error): void => {
+        console.error(`[VoiceConnection] attempt ${attempt}/${attempts} error:`, error.message);
+      };
+      connection.on('stateChange', logStateChange);
+      connection.on('error', logError);
       try {
-        await entersState(connection, VoiceConnectionStatus.Ready, 20000);
+        await entersState(connection, VoiceConnectionStatus.Ready, VOICE_READY_TIMEOUT_MS);
+        connection.off('stateChange', logStateChange);
+        connection.off('error', logError);
         console.log(`[VoiceConnection] Ready (attempt ${attempt}/${attempts}).`);
         return connection;
       } catch (err) {
         lastError = err as Error;
-        console.warn(`[VoiceConnection] Attempt ${attempt}/${attempts} failed: ${lastError.message}`);
+        console.warn(`[VoiceConnection] Attempt ${attempt}/${attempts} failed: ${lastError.message}; final state=${connection.state.status}`);
+        connection.off('stateChange', logStateChange);
+        connection.off('error', logError);
         try {
           connection.destroy();
         } catch {
@@ -226,7 +293,7 @@ export class VoiceSessionManager {
         if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
-    throw new Error(`Voice connection failed after ${attempts} attempts: ${lastError?.message ?? 'unknown error'}`);
+    throw new Error(readableVoiceConnectError(lastError));
   }
 
   async startCapture(spotifyUserId: string): Promise<CaptureHandle> {
@@ -243,11 +310,12 @@ export class VoiceSessionManager {
     if (!voiceChannel) {
       throw new Error('You must be in a voice channel to use this command!');
     }
+    this.assertCanUseVoiceChannel(member, voiceChannel, guild);
 
     const healthy =
       this.voiceConnection !== null &&
       this.currentChannelId === voiceChannel.id &&
-      this.voiceConnection.state.status !== VoiceConnectionStatus.Destroyed;
+      this.voiceConnection.state.status === VoiceConnectionStatus.Ready;
 
     if (healthy) {
       if (!this.audioEngine.isActive()) await this.startCapture(spotifyUserId);

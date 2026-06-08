@@ -140,6 +140,7 @@ client.on('interactionCreate', (interaction) => {
         }
         await cmd.deferReply();
         try {
+          await cmd.editReply('Joining your voice channel...');
           const voiceChannel = await voiceSession.ensureVoiceConnection(member, guild, userId);
           let playError: string | null = null;
           let targetDeviceName = 'your active device';
