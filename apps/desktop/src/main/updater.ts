@@ -88,6 +88,7 @@ class UpdaterManager {
     if (!app.isPackaged) return this.getStatus();
     if (this.status.phase === 'checking' || this.status.phase === 'downloading') return this.getStatus();
     this.userInitiated = userInitiated;
+    if (userInitiated) this.prepareFreshManualCheck();
     try {
       await autoUpdater.checkForUpdates();
     } catch (error) {
@@ -130,6 +131,21 @@ class UpdaterManager {
       clearTimeout(this.checkTimer);
       this.checkTimer = null;
     }
+  }
+
+  private prepareFreshManualCheck(): void {
+    // electron-updater keeps the provider instance alive for the process. Reset it
+    // on manual checks so a just-published GitHub release is not hidden until app restart.
+    const updater = autoUpdater as unknown as {
+      clientPromise?: Promise<unknown> | null;
+      updateInfoAndProvider?: unknown;
+    };
+    updater.clientPromise = null;
+    updater.updateInfoAndProvider = null;
+    autoUpdater.requestHeaders = {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    };
   }
 
   private setStatus(update: Partial<UpdateStatus> & Pick<UpdateStatus, 'phase'>): void {

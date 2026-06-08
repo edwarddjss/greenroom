@@ -121,7 +121,7 @@ export interface EngineSnapshot {
   nowPlaying?: NowPlaying | null;
 }
 
-/** The full preload-exposed API surface. No secret values are ever returned. */
+/** The full preload-exposed API surface. Secrets are returned only from explicit reveal actions. */
 export interface GreenroomIpcApi {
   engineStart(): Promise<EngineSnapshot>;
   engineStop(): Promise<EngineSnapshot>;
@@ -131,6 +131,7 @@ export interface GreenroomIpcApi {
   vbcableInstall(): Promise<VbCableInstallResult>;
   credsSave(creds: Partial<EngineCredentials>): Promise<{ ok: boolean }>;
   credsStatus(): Promise<CredsStatus>;
+  credsReveal(): Promise<Partial<EngineCredentials>>;
   discordInviteUrl(): Promise<string | null>;
   validateDiscord(token: string, clientId: string): Promise<DiscordValidation>;
   validateSpotify(clientId: string, clientSecret: string): Promise<SpotifyValidation>;
@@ -143,6 +144,7 @@ export interface GreenroomIpcApi {
   windowClose(): Promise<void>;
   modelEnsure(): Promise<{ present: boolean }>;
   diagnosticsExport(): Promise<{ path: string }>;
+  diagnosticsIssue(): Promise<{ ok: boolean; error?: string }>;
   diagnosticsOpen(path: string): Promise<{ ok: boolean; error?: string }>;
   updaterGetStatus(): Promise<UpdateStatus>;
   updaterCheck(): Promise<UpdateStatus>;
@@ -164,6 +166,7 @@ export const IPC = {
   vbcableInstall: 'vbcable:install',
   credsSave: 'creds:save',
   credsStatus: 'creds:status',
+  credsReveal: 'creds:reveal',
   discordInviteUrl: 'discord:inviteUrl',
   validateDiscord: 'validate:discord',
   validateSpotify: 'validate:spotify',
@@ -176,6 +179,7 @@ export const IPC = {
   windowClose: 'window:close',
   modelEnsure: 'model:ensure',
   diagnosticsExport: 'diagnostics:export',
+  diagnosticsIssue: 'diagnostics:issue',
   diagnosticsOpen: 'diagnostics:open',
   updaterGetStatus: 'updater:getStatus',
   updaterCheck: 'updater:check',

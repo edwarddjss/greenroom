@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
+import type { CredsStatus, DiscordValidation, EngineCredentials, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
@@ -27,6 +27,9 @@ export function SettingsModal({
   const [toast, setToast] = useState<{ tone: 'ok' | 'bad'; message: string } | null>(null);
   const [credsSummary, setCredsSummary] = useState<string>('Loading...');
   const [credsStatus, setCredsStatus] = useState<CredsStatus | null>(null);
+  const [revealedCreds, setRevealedCreds] = useState<Partial<EngineCredentials> | null>(null);
+  const [replacingDiscord, setReplacingDiscord] = useState(false);
+  const [replacingSpotify, setReplacingSpotify] = useState(false);
   const [savedInviteUrl, setSavedInviteUrl] = useState<string | null>(null);
   const [installingCable, setInstallingCable] = useState(false);
   const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
@@ -57,6 +60,8 @@ export function SettingsModal({
       setSavedInviteUrl(botInviteUrl(discordClientId));
       setDiscordToken('');
       setDiscordClientId('');
+      setRevealedCreds(null);
+      setReplacingDiscord(false);
       showToast('ok', 'Discord credentials saved.');
     } else {
       setDiscordResult(result);
@@ -74,6 +79,8 @@ export function SettingsModal({
       setCredsStatus(await api.credsStatus());
       setSpotifyClientId('');
       setSpotifyClientSecret('');
+      setRevealedCreds(null);
+      setReplacingSpotify(false);
       showToast('ok', 'Spotify credentials saved.');
     } else {
       setSpotifyResult(result);
@@ -108,14 +115,13 @@ export function SettingsModal({
 
   const startTunnel = async (): Promise<void> => {
     setTunnelBusy(true);
-    setTunnel(await api.tunnelStart());
-    setTunnelBusy(false);
-  };
-
-  const stopTunnel = async (): Promise<void> => {
-    setTunnelBusy(true);
-    setTunnel(await api.tunnelStop());
-    setTunnelBusy(false);
+    try {
+      setTunnel(await api.tunnelStart());
+    } catch (err) {
+      setTunnel({ running: false, error: err instanceof Error ? err.message : 'Could not get the Spotify redirect.' });
+    } finally {
+      setTunnelBusy(false);
+    }
   };
 
   const copyText = async (label: string, value: string | undefined): Promise<void> => {
@@ -124,20 +130,36 @@ export function SettingsModal({
     showToast('ok', `${label} copied.`);
   };
 
+  const revealCreds = async (): Promise<void> => {
+    setRevealedCreds(await api.credsReveal());
+  };
+
+  const toggleRevealedCreds = (): void => {
+    if (revealedCreds) setRevealedCreds(null);
+    else void revealCreds();
+  };
+
   const showToast = (tone: 'ok' | 'bad', message: string): void => {
     setToast({ tone, message });
     setTimeout(() => setToast(null), 2200);
   };
 
   const vbCableNeedsAttention = prereqs.vbcable.status !== 'ok' && prereqs.vbcable.status !== 'unknown';
-  const activeRedirectUri = tunnel.callbackUrl ?? 'Start the tunnel above to get the Spotify redirect URI.';
+  const activeRedirectUri = tunnel.callbackUrl ?? 'Get a redirect to add in Spotify.';
   const discordSaved = credsStatus?.hasDiscord === true;
   const spotifySaved = credsStatus?.hasSpotify === true;
+  const showDiscordFields = !discordSaved || replacingDiscord;
+  const showSpotifyFields = !spotifySaved || replacingSpotify;
 
   const exportDiagnostics = async (): Promise<void> => {
     const result = await api.diagnosticsExport();
     const opened = await api.diagnosticsOpen(result.path);
     showToast(opened.ok ? 'ok' : 'bad', opened.ok ? 'Diagnostics report opened.' : (opened.error ?? 'Diagnostics report was created, but could not be opened.'));
+  };
+
+  const openSupportIssue = async (): Promise<void> => {
+    const result = await api.diagnosticsIssue();
+    showToast(result.ok ? 'ok' : 'bad', result.ok ? 'Support request opened. Report copied to clipboard.' : (result.error ?? 'Could not open support.'));
   };
 
   return (
@@ -168,15 +190,12 @@ export function SettingsModal({
 
           <section className="space-y-3">
             <SectionHeader
-              label="Public Spotify login"
-              detail="Use this when friends need to link Spotify from outside the host PC."
+              label="Spotify redirect"
+              detail="Greenroom starts this automatically with the bot. Refresh only when Spotify needs a new redirect URI."
               action={
                 <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" size="sm" disabled={tunnelBusy} onClick={() => void startTunnel()}>
-                    {tunnelBusy ? 'Starting…' : tunnel.running ? 'Refresh tunnel' : 'Start tunnel'}
-                  </Button>
-                  <Button variant="ghost" size="sm" disabled={tunnelBusy || !tunnel.running} onClick={() => void stopTunnel()}>
-                    Stop
+                    {tunnelBusy ? 'Refreshing…' : tunnel.callbackUrl ? 'Refresh redirect' : 'Get redirect'}
                   </Button>
                 </div>
               }
@@ -184,7 +203,7 @@ export function SettingsModal({
             <div className="space-y-2 rounded-lg border border-line bg-sunken p-3">
               <div className="grid gap-2 md:grid-cols-[1fr_auto]">
                 <Code className="min-w-0 truncate py-2">
-                  {tunnel.callbackUrl ?? 'Start the tunnel, then add this callback in Spotify.'}
+                  {tunnel.callbackUrl ?? 'Get a redirect, then add it in Spotify.'}
                 </Code>
                 <Button variant="ghost" size="sm" disabled={!tunnel.callbackUrl} onClick={() => void copyText('Redirect URI', tunnel.callbackUrl)}>
                   Copy redirect
@@ -196,19 +215,40 @@ export function SettingsModal({
                   {tunnel.url ? ` Tunnel URL: ${tunnel.url}` : ''}
                 </p>
               )}
-              <p className="text-xs text-muted">Add the Redirect URI above in the Spotify Developer Dashboard. The bot restarts automatically when this URL changes.</p>
+              <p className="text-xs text-muted">Add this Redirect URI in the Spotify Developer Dashboard. If the bot is already running, Greenroom restarts it after the redirect changes.</p>
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-3">
-              <SectionHeader label="Discord bot" action={<SavedBadge saved={discordSaved} />} />
-              <Field label={discordSaved ? 'Replace bot token' : 'Bot token'} mono type="password" placeholder={discordSaved ? 'Enter a new token to replace the saved token' : 'New bot token'} value={discordToken} onChange={(e) => setDiscordToken(e.target.value)} />
-              <Field label={discordSaved ? 'Replace Application ID' : 'Application ID'} mono placeholder={discordSaved ? 'Enter a new ID to replace the saved ID' : 'Application ID'} value={discordClientId} onChange={(e) => setDiscordClientId(e.target.value)} />
+              <SectionHeader
+                label="Discord bot"
+                action={discordSaved && !replacingDiscord ? (
+                  <Button variant="ghost" size="sm" onClick={() => setReplacingDiscord(true)}>Replace</Button>
+                ) : null}
+              />
+              {discordSaved && !replacingDiscord ? (
+                <div className="space-y-2">
+                  <CredentialValue label="Bot token" value={revealedCreds?.discordToken} onReveal={toggleRevealedCreds} />
+                  <CredentialValue
+                    label="Application ID"
+                    value={revealedCreds?.discordClientId}
+                    onReveal={toggleRevealedCreds}
+                  />
+                </div>
+              ) : (
+                <>
+                  <Field label="Bot token" mono type="password" placeholder="Bot token" value={discordToken} onChange={(e) => setDiscordToken(e.target.value)} />
+                  <Field label="Application ID" mono placeholder="Application ID" value={discordClientId} onChange={(e) => setDiscordClientId(e.target.value)} />
+                </>
+              )}
               <div className="flex flex-wrap gap-2">
-                <Button disabled={!hasDiscordDraft || busy === 'discord'} onClick={() => void saveDiscord()}>
-                  {busy === 'discord' ? 'Saving…' : 'Validate & save'}
-                </Button>
+                {showDiscordFields && (
+                  <Button disabled={!hasDiscordDraft || busy === 'discord'} onClick={() => void saveDiscord()}>
+                    {busy === 'discord' ? 'Saving…' : 'Validate & save'}
+                  </Button>
+                )}
+                {replacingDiscord && <Button variant="ghost" onClick={() => setReplacingDiscord(false)}>Cancel</Button>}
                 <Button variant="ghost" disabled={!inviteUrl} onClick={() => inviteUrl && window.open(inviteUrl, '_blank')}>
                   Invite bot
                 </Button>
@@ -217,13 +257,36 @@ export function SettingsModal({
             </div>
 
             <div className="space-y-3">
-              <SectionHeader label="Spotify app" action={<SavedBadge saved={spotifySaved} />} />
+              <SectionHeader
+                label="Spotify app"
+                action={spotifySaved && !replacingSpotify ? (
+                  <Button variant="ghost" size="sm" onClick={() => setReplacingSpotify(true)}>Replace</Button>
+                ) : null}
+              />
               <Code className={`block break-all whitespace-normal ${tunnel.callbackUrl ? '' : 'text-muted'}`}>{activeRedirectUri}</Code>
-              <Field label={spotifySaved ? 'Replace Client ID' : 'Client ID'} mono placeholder={spotifySaved ? 'Enter a new ID to replace the saved ID' : 'New client ID'} value={spotifyClientId} onChange={(e) => setSpotifyClientId(e.target.value)} />
-              <Field label={spotifySaved ? 'Replace Client secret' : 'Client secret'} mono type="password" placeholder={spotifySaved ? 'Enter a new secret to replace the saved secret' : 'New client secret'} value={spotifyClientSecret} onChange={(e) => setSpotifyClientSecret(e.target.value)} />
-              <Button disabled={!hasSpotifyDraft || busy === 'spotify'} onClick={() => void saveSpotify()}>
-                {busy === 'spotify' ? 'Saving…' : 'Validate & save'}
-              </Button>
+              {spotifySaved && !replacingSpotify ? (
+                <div className="space-y-2">
+                  <CredentialValue label="Client ID" value={revealedCreds?.spotifyClientId} onReveal={toggleRevealedCreds} />
+                  <CredentialValue
+                    label="Client secret"
+                    value={revealedCreds?.spotifyClientSecret}
+                    onReveal={toggleRevealedCreds}
+                  />
+                </div>
+              ) : (
+                <>
+                  <Field label="Client ID" mono placeholder="Client ID" value={spotifyClientId} onChange={(e) => setSpotifyClientId(e.target.value)} />
+                  <Field label="Client secret" mono type="password" placeholder="Client secret" value={spotifyClientSecret} onChange={(e) => setSpotifyClientSecret(e.target.value)} />
+                </>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {showSpotifyFields && (
+                  <Button disabled={!hasSpotifyDraft || busy === 'spotify'} onClick={() => void saveSpotify()}>
+                    {busy === 'spotify' ? 'Saving…' : 'Validate & save'}
+                  </Button>
+                )}
+                {replacingSpotify && <Button variant="ghost" onClick={() => setReplacingSpotify(false)}>Cancel</Button>}
+              </div>
               {spotifyResult && !spotifyResult.ok && <p className="text-sm text-danger">{spotifyResult.error}</p>}
             </div>
           </section>
@@ -240,19 +303,19 @@ export function SettingsModal({
 
           <section className="space-y-3 border-t border-line pt-5">
             <SectionHeader
-              label="Get support"
-              detail="Create a privacy-safe report when something is not working."
+              label="Support"
+              detail="Open a GitHub issue with a safe app report attached."
               icon={<Icon name="lifebuoy" size={16} />}
             />
             <p className="text-xs leading-relaxed text-muted">
-              The report includes app and system status, but never your Discord token, Spotify secret, or linked-account tokens. Review it before attaching it to an issue.
+              The report includes app and system status. It never includes Discord tokens, Spotify secrets, or linked-account tokens.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Create support report</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.open('https://github.com/edwarddjss/greenroom/issues/new', '_blank')}>
+              <Button size="sm" onClick={() => void openSupportIssue()}>
                 <Icon name="link" size={14} />
-                Report an issue
+                Open support request
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Save report</Button>
             </div>
           </section>
       </div>
@@ -266,10 +329,21 @@ export function SettingsModal({
   );
 }
 
-function SavedBadge({ saved }: { saved: boolean }): JSX.Element {
+function CredentialValue({
+  label,
+  value,
+  onReveal,
+}: {
+  label: string;
+  value: string | undefined;
+  onReveal: () => void;
+}): JSX.Element {
+  const visible = Boolean(value);
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${saved ? 'bg-accent/15 text-accent' : 'bg-white/10 text-muted'}`}>
-      {saved ? 'Saved' : 'Missing'}
-    </span>
+    <div className="grid gap-2 md:grid-cols-[110px_minmax(0,1fr)_auto] md:items-center">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <Code className="block min-w-0 truncate py-2">{visible ? value : '************'}</Code>
+      <Button variant="ghost" size="sm" onClick={onReveal}>{visible ? 'Hide' : 'Reveal'}</Button>
+    </div>
   );
 }

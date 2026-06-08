@@ -1,4 +1,4 @@
-import { app, ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
+import { app, clipboard, ipcMain, shell, utilityProcess, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import { join, dirname } from 'node:path';
 import {
@@ -80,8 +80,17 @@ function registerCommands(): Promise<CommandRegisterResult> {
 }
 
 async function exportDiagnostics(): Promise<{ path: string }> {
+  const report = await createDiagnosticsReport();
+  const dir = join(dataDir(), 'diagnostics');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = join(dir, `greenroom-diagnostics-${Date.now()}.json`);
+  fs.writeFileSync(file, JSON.stringify(report, null, 2));
+  return { path: file };
+}
+
+async function createDiagnosticsReport(): Promise<Record<string, unknown>> {
   const prereqs = await scanPrereqs();
-  const report = {
+  return {
     ts: new Date().toISOString(),
     platform: process.platform,
     arch: process.arch,
@@ -90,11 +99,38 @@ async function exportDiagnostics(): Promise<{ path: string }> {
     prereqs,
     creds: credsStatus(),
   };
-  const dir = join(dataDir(), 'diagnostics');
-  fs.mkdirSync(dir, { recursive: true });
-  const file = join(dir, `greenroom-diagnostics-${Date.now()}.json`);
-  fs.writeFileSync(file, JSON.stringify(report, null, 2));
-  return { path: file };
+}
+
+async function openSupportIssue(): Promise<{ ok: boolean; error?: string }> {
+  const report = JSON.stringify(await createDiagnosticsReport(), null, 2);
+  clipboard.writeText(report);
+  const bodyWithoutReport = [
+    'What happened?',
+    '',
+    '',
+    'What did you expect?',
+    '',
+    '',
+    'Support report',
+    '',
+    'The report was copied to your clipboard. Paste it here.',
+  ].join('\n');
+  const bodyWithReport = [
+    bodyWithoutReport,
+    '',
+    '```json',
+    report,
+    '```',
+  ].join('\n');
+  const issueUrl = (body: string): string =>
+    `https://github.com/edwarddjss/greenroom/issues/new?${new URLSearchParams({
+      title: 'Support request',
+      body,
+    }).toString()}`;
+  const fullUrl = issueUrl(bodyWithReport);
+  const url = fullUrl.length < 7000 ? fullUrl : issueUrl(bodyWithoutReport);
+  await shell.openExternal(url);
+  return { ok: true };
 }
 
 async function ensurePublicAuthTunnel(): Promise<void> {
@@ -142,6 +178,7 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     return { ok: true };
   });
   ipcMain.handle(IPC.credsStatus, () => credsStatus());
+  ipcMain.handle(IPC.credsReveal, () => loadCreds());
   ipcMain.handle(IPC.discordInviteUrl, () => {
     const clientId = loadCreds().discordClientId;
     return clientId && /^\d{17,20}$/.test(clientId) ? botInviteUrl(clientId) : null;
@@ -171,6 +208,7 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     ensureModel((p) => getWin()?.webContents.send(IPC_EVENT.modelProgress, p)),
   );
   ipcMain.handle(IPC.diagnosticsExport, () => exportDiagnostics());
+  ipcMain.handle(IPC.diagnosticsIssue, () => openSupportIssue());
   ipcMain.handle(IPC.diagnosticsOpen, async (_e, path: string) => {
     if (!path || !fs.existsSync(path)) return { ok: false, error: 'Diagnostics file is no longer available.' };
     shell.showItemInFolder(path);
