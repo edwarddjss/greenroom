@@ -13,6 +13,7 @@ import { HEALTH_MARKER } from '@greenroom/engine/health';
 import { engineEntry } from './paths';
 import { loadCreds } from './vault';
 import { buildEngineEnv } from './engine-env';
+import { restoreSpotifyOutputFromDesktop } from './audio-routing';
 
 interface SupervisorCallbacks {
   onState: (snapshot: EngineSnapshot) => void;
@@ -116,10 +117,11 @@ export class Supervisor {
     return this.snapshot();
   }
 
-  stop(): EngineSnapshot {
+  async stop(): Promise<EngineSnapshot> {
     this.userStopped = true;
     this.clearTimers();
     this.transition('stopping');
+    await restoreSpotifyOutputFromDesktop().catch(() => undefined);
     this.killChild();
     this.captureActive = false;
     this.clearNowPlaying();
@@ -127,8 +129,8 @@ export class Supervisor {
     return this.snapshot();
   }
 
-  restart(): EngineSnapshot {
-    this.stop();
+  async restart(): Promise<EngineSnapshot> {
+    await this.stop();
     return this.start();
   }
 

@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
+import type {
+  AudioDeviceChoice,
+  AudioDeviceReport,
+  AudioDeviceSettings,
+  DiscordValidation,
+  PrereqReport,
+  SpotifyValidation,
+  TunnelStatus,
+  VbCableInstallResult,
+} from '@greenroom/shared';
 import { EMPTY_PREREQS, botInviteUrl } from '@greenroom/shared';
 import { Icon } from './Icon';
 import { api } from '../lib/api';
-import { Button, Card, Code, Field, Modal, Pill, ProgressBar } from './ui';
+import { Button, Card, Code, Field, Modal, Pill, ProgressBar, SelectField } from './ui';
 
 type StepId = 'welcome' | 'vbcable' | 'routing' | 'discord' | 'spotify' | 'commands' | 'invite' | 'model' | 'finish';
-const ORDER: StepId[] = ['welcome', 'vbcable', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
+const ORDER: StepId[] = ['welcome', 'vbcable', 'routing', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
 const WIZARD_STEP_KEY = 'greenroom:onboarding-step';
 const TITLES: Record<StepId, string> = {
   welcome: 'Welcome',
@@ -118,7 +127,8 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   const [tunnel, setTunnel] = useState<TunnelStatus>({ running: false });
   const [tunnelBusy, setTunnelBusy] = useState(false);
 
-  const [routingConfirmed, setRoutingConfirmed] = useState(false);
+  const [audioReport, setAudioReport] = useState<AudioDeviceReport | null>(null);
+  const [audioSaving, setAudioSaving] = useState(false);
   const [commandResult, setCommandResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [commandsBusy, setCommandsBusy] = useState(false);
   const [inviteOpened, setInviteOpened] = useState(false);
@@ -135,6 +145,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   useEffect(() => {
     void scan();
     void api.tunnelStatus().then(setTunnel);
+    void api.audioDevicesList().then(setAudioReport);
   }, []);
 
   useEffect(() => {
@@ -192,7 +203,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
       case 'vbcable':
         return prereqs.vbcable.status === 'ok' && prereqs.ffmpeg.status === 'ok';
       case 'routing':
-        return routingConfirmed;
+        return Boolean(audioReport?.settings.captureDevice && audioReport.settings.routeDevice && audioReport.settings.restoreDevice);
       case 'discord':
         return discordResult?.ok === true;
       case 'spotify':
@@ -206,7 +217,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
       default:
         return true;
     }
-  }, [step, prereqs, routingConfirmed, discordResult, spotifyResult, commandResult, inviteOpened, modelReady]);
+  }, [step, prereqs, audioReport, discordResult, spotifyResult, commandResult, inviteOpened, modelReady]);
 
   const next = (): void => {
     if (!canNext) return;
@@ -225,6 +236,15 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   const copyText = async (value: string | undefined): Promise<void> => {
     if (!value) return;
     await navigator.clipboard.writeText(value);
+  };
+  const saveAudio = async (patch: Partial<AudioDeviceSettings>): Promise<void> => {
+    setAudioSaving(true);
+    try {
+      const settings = await api.audioDevicesSave(patch);
+      setAudioReport((prev) => (prev ? { ...prev, settings } : prev));
+    } finally {
+      setAudioSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -297,22 +317,37 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
         {step === 'routing' && (
           <div className="space-y-4 text-sm">
-            <p>In the Windows Volume Mixer, set <b>Spotify</b>'s output device to <b>CABLE Input (VB-Audio Virtual Cable)</b>. Keep your system output on your real speakers so only Spotify is routed.</p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" onClick={() => setGuide('routing')}>
-                <Icon name="play" size={16} />
-                Show guide
-              </Button>
-              <Button variant="ghost" onClick={() => window.open(GUIDES.routing.primaryUrl, '_blank')}>
-                <Icon name="link" size={16} />
-                Open volume mixer
-              </Button>
-            </div>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input type="checkbox" className="accent-accent" checked={routingConfirmed} onChange={(e) => setRoutingConfirmed(e.target.checked)} />
-              I set Spotify's output to CABLE Input
-            </label>
-            <p className="text-muted text-xs">Windows can't tell us app routing programmatically, so this is user-confirmed. The final step verifies real audio.</p>
+            <p>Pick the virtual cable Greenroom uses while streaming, then pick where Spotify should return when the bot stops.</p>
+            {audioReport ? (
+              <div className="grid gap-3">
+                <DeviceSelect
+                  label="Send Spotify to Discord"
+                  value={audioReport.settings.routeDevice}
+                  devices={audioReport.render}
+                  placeholder="Select CABLE Input"
+                  onChange={(routeDevice) => void saveAudio({ routeDevice })}
+                />
+                <DeviceSelect
+                  label="Hear Spotify when stopped"
+                  value={audioReport.settings.restoreDevice}
+                  devices={audioReport.render.filter((device) => device.name !== audioReport.settings.routeDevice)}
+                  placeholder="Select headphones or speakers"
+                  onChange={(restoreDevice) => void saveAudio({ restoreDevice })}
+                />
+                <DeviceSelect
+                  label="Capture from"
+                  value={audioReport.settings.captureDevice}
+                  devices={audioReport.capture}
+                  placeholder="Select CABLE Output"
+                  onChange={(captureDevice) => void saveAudio({ captureDevice })}
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-line bg-sunken p-3 text-muted">Loading audio devices…</div>
+            )}
+            <p className="text-muted text-xs">
+              {audioSaving ? 'Saving…' : 'Greenroom changes Spotify only. Your Windows default speaker stays as-is.'}
+            </p>
           </div>
         )}
 
@@ -438,6 +473,33 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
       {guide && <GuideModal guide={GUIDES[guide]} onClose={() => setGuide(null)} />}
     </div>
+  );
+}
+
+function DeviceSelect({
+  label,
+  value,
+  devices,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  devices: AudioDeviceChoice[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}): JSX.Element {
+  const hasValueInList = devices.some((device) => device.name === value);
+  return (
+    <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{placeholder}</option>
+      {value && !hasValueInList && <option value={value}>{value}</option>}
+      {devices.map((device) => (
+        <option key={`${device.kind}:${device.id}:${device.name}`} value={device.name}>
+          {device.name}
+        </option>
+      ))}
+    </SelectField>
   );
 }
 

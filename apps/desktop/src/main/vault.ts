@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { Database } from 'sql.js';
-import { EngineCredentials, type CredsStatus } from '@greenroom/shared';
+import { EngineCredentials, type AudioDeviceSettings, type CredsStatus } from '@greenroom/shared';
 import { dataDir } from './paths';
 
 const require = createRequire(import.meta.url);
@@ -14,6 +14,11 @@ const legacyDbFiles = (): string[] => [join(dataDir(), 'spoticord.sqlite'), join
 const legacyCredsFile = (): string => join(dataDir(), 'creds.enc');
 const legacyStoreKeyFile = (): string => join(dataDir(), 'storekey.enc');
 const PartialCreds = EngineCredentials.partial();
+const AUDIO_KEYS = {
+  captureDevice: 'audio.captureDevice',
+  routeDevice: 'audio.routeDevice',
+  restoreDevice: 'audio.restoreDevice',
+} as const;
 
 let db: Database | null = null;
 
@@ -143,6 +148,31 @@ export function clearCredFields(keys: (keyof EngineCredentials)[]): void {
     deleteSecureValue(key);
   }
   persist();
+}
+
+export function loadAudioSettings(): Partial<AudioDeviceSettings> {
+  const settings: Partial<AudioDeviceSettings> = {};
+  for (const [field, key] of Object.entries(AUDIO_KEYS) as [keyof AudioDeviceSettings, string][]) {
+    const value = getSecureValue(key);
+    if (value) settings[field] = value;
+  }
+  return settings;
+}
+
+export function saveAudioSettings(partial: Partial<AudioDeviceSettings>): AudioDeviceSettings {
+  const merged = { ...loadAudioSettings(), ...partial };
+  const next: AudioDeviceSettings = {
+    captureDevice: merged.captureDevice?.trim() ?? '',
+    routeDevice: merged.routeDevice?.trim() ?? '',
+    restoreDevice: merged.restoreDevice?.trim() ?? '',
+  };
+  for (const [field, key] of Object.entries(AUDIO_KEYS) as [keyof AudioDeviceSettings, string][]) {
+    const value = next[field];
+    if (value) setSecureValue(key, value);
+    else deleteSecureValue(key);
+  }
+  persist();
+  return next;
 }
 
 export function credsStatus(): CredsStatus {

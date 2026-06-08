@@ -25,6 +25,8 @@ export interface EngineRuntimeOptions {
   storeKey?: string;
   nluModelPath?: string;
   audioDevice?: string;
+  spotifyOutputDevice?: string;
+  spotifyRestoreDevice?: string;
 }
 
 /** Build the process env injected into the forked engine child. No .env on disk. */
@@ -46,6 +48,8 @@ export function toEngineEnv(creds: EngineCredentials, opts: EngineRuntimeOptions
   if (opts.storeKey) env.GREENROOM_STORE_KEY = opts.storeKey;
   if (opts.nluModelPath) env.GREENROOM_NLU_MODEL = opts.nluModelPath;
   if (opts.audioDevice) env.AUDIO_DEVICE = opts.audioDevice;
+  if (opts.spotifyOutputDevice) env.GREENROOM_SPOTIFY_OUTPUT_DEVICE = opts.spotifyOutputDevice;
+  if (opts.spotifyRestoreDevice) env.GREENROOM_SPOTIFY_RESTORE_DEVICE = opts.spotifyRestoreDevice;
   return env;
 }
 

@@ -91,6 +91,28 @@ export interface UpdateStatus {
   lastCheckedAt?: number;
 }
 
+export interface AudioDeviceChoice {
+  id: string;
+  name: string;
+  kind: 'render' | 'capture';
+  isVirtualCable: boolean;
+}
+
+export interface AudioDeviceSettings {
+  /** Recording endpoint FFmpeg captures from, usually "CABLE Output". */
+  captureDevice: string;
+  /** Playback endpoint Spotify is routed to while the bot is streaming, usually "CABLE Input". */
+  routeDevice: string;
+  /** Playback endpoint Spotify is restored to when the bot stops. */
+  restoreDevice: string;
+}
+
+export interface AudioDeviceReport {
+  render: AudioDeviceChoice[];
+  capture: AudioDeviceChoice[];
+  settings: AudioDeviceSettings;
+}
+
 /** What the host's Spotify is currently playing, surfaced for the now-playing hero. */
 export interface NowPlaying {
   title: string;
@@ -149,6 +171,8 @@ export interface GreenroomIpcApi {
   updaterGetStatus(): Promise<UpdateStatus>;
   updaterCheck(): Promise<UpdateStatus>;
   updaterInstall(): Promise<void>;
+  audioDevicesList(): Promise<AudioDeviceReport>;
+  audioDevicesSave(settings: Partial<AudioDeviceSettings>): Promise<AudioDeviceSettings>;
   onEngineState(cb: (snapshot: EngineSnapshot) => void): () => void;
   onEngineLog(cb: (lines: LogLine[]) => void): () => void;
   onPrereqs(cb: (report: PrereqReport) => void): () => void;
@@ -184,6 +208,8 @@ export const IPC = {
   updaterGetStatus: 'updater:getStatus',
   updaterCheck: 'updater:check',
   updaterInstall: 'updater:install',
+  audioDevicesList: 'audioDevices:list',
+  audioDevicesSave: 'audioDevices:save',
 } as const;
 
 /** main -> renderer push channels (events). */

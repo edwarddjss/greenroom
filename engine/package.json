@@ -13,6 +13,10 @@
     "./health": {
       "types": "./dist/health.d.ts",
       "default": "./dist/health.js"
+    },
+    "./windows-audio-router": {
+      "types": "./dist/windows-audio-router.d.ts",
+      "default": "./dist/windows-audio-router.js"
     }
   },
   "scripts": {

@@ -1,6 +1,6 @@
 import { toEngineEnv, type EngineCredentials } from '@greenroom/shared';
 import { dataDir, ffmpegPath, modelPath } from './paths';
-import { getStoreKey } from './vault';
+import { getStoreKey, loadAudioSettings } from './vault';
 
 /**
  * Build the env for a forked engine/register child. We MUST inherit the parent
@@ -10,18 +10,20 @@ import { getStoreKey } from './vault';
  */
 export function buildEngineEnv(creds: EngineCredentials): Record<string, string> {
   const env: Record<string, string> = {};
+  const audio = loadAudioSettings();
+  const runtimeOptions = {
+    dataDir: dataDir(),
+    ffmpegPath: ffmpegPath(),
+    storeKey: getStoreKey(),
+    nluModelPath: modelPath(),
+    ...(audio.captureDevice ? { audioDevice: audio.captureDevice } : {}),
+    ...(audio.routeDevice ? { spotifyOutputDevice: audio.routeDevice } : {}),
+    ...(audio.restoreDevice ? { spotifyRestoreDevice: audio.restoreDevice } : {}),
+  };
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined) env[key] = value;
   }
-  Object.assign(
-    env,
-    toEngineEnv(creds, {
-      dataDir: dataDir(),
-      ffmpegPath: ffmpegPath(),
-      storeKey: getStoreKey(),
-      nluModelPath: modelPath(),
-    }),
-  );
+  Object.assign(env, toEngineEnv(creds, runtimeOptions));
   delete env.ELECTRON_RUN_AS_NODE;
   return env;
 }

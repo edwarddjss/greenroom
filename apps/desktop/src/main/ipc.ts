@@ -8,17 +8,19 @@ import {
   botInviteUrl,
   type CommandRegisterResult,
   type EngineCredentials as Creds,
+  type AudioDeviceSettings,
 } from '@greenroom/shared';
 import { Supervisor } from './supervisor';
 import { scanPrereqs } from './prereqs';
 import { validateDiscord, validateSpotify } from './validators';
-import { loadCreds, saveCreds, credsStatus } from './vault';
+import { loadCreds, saveCreds, credsStatus, saveAudioSettings } from './vault';
 import { ensureModel, isModelPresent } from './model';
 import { dataDir, engineEntry } from './paths';
 import { buildEngineEnv } from './engine-env';
 import { tunnelManager } from './tunnel';
 import { installVbCable } from './vbcable';
 import { updaterManager } from './updater';
+import { getAudioDeviceReport } from './audio-devices';
 
 type WinGetter = () => BrowserWindow | null;
 const COMMAND_REGISTRATION_TIMEOUT_MS = 30_000;
@@ -99,6 +101,7 @@ async function createDiagnosticsReport(): Promise<Record<string, unknown>> {
     modelPresent: isModelPresent(),
     prereqs,
     creds: credsStatus(),
+    audio: (await getAudioDeviceReport()).settings,
   };
 }
 
@@ -196,7 +199,7 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
     const status = await tunnelManager.start();
     const engineState = supervisor.snapshot().state;
     if (status.url && ['starting', 'running', 'degraded', 'crashed'].includes(engineState)) {
-      supervisor.restart();
+      void supervisor.restart();
     }
     return status;
   });
@@ -223,4 +226,9 @@ export function registerIpc(supervisor: Supervisor, getWin: WinGetter): void {
   ipcMain.handle(IPC.updaterGetStatus, () => updaterManager.getStatus());
   ipcMain.handle(IPC.updaterCheck, () => updaterManager.check(true));
   ipcMain.handle(IPC.updaterInstall, () => updaterManager.installNow());
+  ipcMain.handle(IPC.audioDevicesList, () => getAudioDeviceReport());
+  ipcMain.handle(IPC.audioDevicesSave, async (_e, settings: Partial<AudioDeviceSettings>) => {
+    saveAudioSettings(settings);
+    return (await getAudioDeviceReport()).settings;
+  });
 }

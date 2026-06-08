@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 
 type CardVariant = 'panel' | 'inset';
 const cardVariants: Record<CardVariant, string> = {
@@ -150,6 +150,28 @@ export function Field({
         className={`w-full rounded-lg border border-line bg-sunken px-3 py-2 text-[13px] text-text placeholder:text-muted/70 transition-colors focus-visible:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 ${mono ? 'font-mono' : ''} ${className}`}
         {...rest}
       />
+    </label>
+  );
+}
+
+export function SelectField({
+  label,
+  className = '',
+  children,
+  id,
+  ...rest
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string }): JSX.Element {
+  const fieldId = id ?? `field-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  return (
+    <label htmlFor={fieldId} className="block space-y-1.5">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <select
+        id={fieldId}
+        className={`w-full rounded-lg border border-line bg-sunken px-3 py-2 text-[13px] text-text transition-colors focus-visible:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 ${className}`}
+        {...rest}
+      >
+        {children}
+      </select>
     </label>
   );
 }

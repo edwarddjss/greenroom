@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { CredsStatus, DiscordValidation, EngineCredentials, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
+import type {
+  AudioDeviceChoice,
+  AudioDeviceReport,
+  AudioDeviceSettings,
+  CredsStatus,
+  DiscordValidation,
+  EngineCredentials,
+  PrereqReport,
+  SpotifyValidation,
+  TunnelStatus,
+  VbCableInstallResult,
+} from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
-import { Button, Code, Field, Modal, SectionHeader } from './ui';
+import { Button, Code, Field, Modal, SectionHeader, SelectField } from './ui';
 
 export function SettingsModal({
   prereqs,
@@ -35,10 +46,13 @@ export function SettingsModal({
   const [savedInviteUrl, setSavedInviteUrl] = useState<string | null>(null);
   const [installingCable, setInstallingCable] = useState(false);
   const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
+  const [audioReport, setAudioReport] = useState<AudioDeviceReport | null>(null);
+  const [audioSaving, setAudioSaving] = useState(false);
 
   useEffect(() => {
     void api.tunnelStatus().then(setTunnel);
     void api.discordInviteUrl().then(setSavedInviteUrl);
+    void api.audioDevicesList().then(setAudioReport);
     void api.credsStatus().then((status) => {
       setCredsStatus(status);
       const discord = status.hasDiscord ? 'Discord set' : 'Discord missing';
@@ -134,6 +148,17 @@ export function SettingsModal({
     showToast('ok', `${label} copied.`);
   };
 
+  const saveAudio = async (patch: Partial<AudioDeviceSettings>): Promise<void> => {
+    setAudioSaving(true);
+    try {
+      const settings = await api.audioDevicesSave(patch);
+      setAudioReport((prev) => (prev ? { ...prev, settings } : prev));
+      showToast('ok', 'Audio routing saved.');
+    } finally {
+      setAudioSaving(false);
+    }
+  };
+
   const toggleCredentialField = async (field: keyof EngineCredentials): Promise<void> => {
     if (revealedFields[field]) {
       setRevealedFields((prev) => ({ ...prev, [field]: false }));
@@ -185,6 +210,43 @@ export function SettingsModal({
                 )}
               </div>
             )}
+          </section>
+
+          <section className="space-y-3">
+            <SectionHeader
+              label="Audio routing"
+              detail="Choose where Spotify goes when Greenroom starts and where it returns when Greenroom stops."
+            />
+            {audioReport ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                <DeviceSelect
+                  label="Send Spotify to Discord"
+                  value={audioReport.settings.routeDevice}
+                  devices={audioReport.render}
+                  placeholder="Select virtual cable input"
+                  onChange={(routeDevice) => void saveAudio({ routeDevice })}
+                />
+                <DeviceSelect
+                  label="Hear Spotify when stopped"
+                  value={audioReport.settings.restoreDevice}
+                  devices={audioReport.render.filter((device) => device.name !== audioReport.settings.routeDevice)}
+                  placeholder="Select headphones or speakers"
+                  onChange={(restoreDevice) => void saveAudio({ restoreDevice })}
+                />
+                <DeviceSelect
+                  label="Capture from"
+                  value={audioReport.settings.captureDevice}
+                  devices={audioReport.capture}
+                  placeholder="Select virtual cable output"
+                  onChange={(captureDevice) => void saveAudio({ captureDevice })}
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-line bg-sunken p-3 text-sm text-muted">Loading audio devices…</div>
+            )}
+            <p className="text-xs text-muted">
+              {audioSaving ? 'Saving…' : 'Changes apply the next time the bot starts.'}
+            </p>
           </section>
 
           <section className="space-y-3">
@@ -359,5 +421,32 @@ function CredentialValue({
         <Icon name={visible ? 'eyeOff' : 'eye'} size={15} />
       </button>
     </div>
+  );
+}
+
+function DeviceSelect({
+  label,
+  value,
+  devices,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  devices: AudioDeviceChoice[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}): JSX.Element {
+  const hasValueInList = devices.some((device) => device.name === value);
+  return (
+    <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{placeholder}</option>
+      {value && !hasValueInList && <option value={value}>{value}</option>}
+      {devices.map((device) => (
+        <option key={`${device.kind}:${device.id}:${device.name}`} value={device.name}>
+          {device.name}
+        </option>
+      ))}
+    </SelectField>
   );
 }

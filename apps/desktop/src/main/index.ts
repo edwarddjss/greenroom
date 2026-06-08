@@ -72,5 +72,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   tunnelManager.stop();
   // Never leave an orphaned engine holding :8888.
-  supervisor?.stop();
+  void supervisor?.stop();
 });

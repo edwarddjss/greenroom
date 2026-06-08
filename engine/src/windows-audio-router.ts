@@ -1,12 +1,17 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { config } from './config.js';
 
 export interface AudioRouteResult {
   ok: boolean;
   skipped?: boolean;
   message: string;
+}
+
+export interface AudioRouterOptions {
+  dataDir?: string;
+  routeDeviceName?: string;
+  restoreDeviceName?: string;
 }
 
 const ROUTE_TIMEOUT_MS = 8_000;
@@ -206,8 +211,16 @@ namespace Greenroom {
         Directory.CreateDirectory(Path.GetDirectoryName(statePath));
         File.WriteAllText(statePath, previous ?? "", Encoding.UTF8);
       } else {
-        string state = File.Exists(statePath) ? File.ReadAllText(statePath, Encoding.UTF8).Trim() : "";
-        targetDevice = DeserializeDeviceInfo(state);
+        if (!String.IsNullOrWhiteSpace(targetName) && targetName != "__greenroom_previous__") {
+          targetDevice = FindRenderDevice(targetName);
+          if (targetDevice == null || String.IsNullOrWhiteSpace(targetDevice.FullId)) {
+            throw new Exception("Could not find the restore audio output device named " + targetName + ".");
+          }
+        }
+        if (targetDevice == null) {
+          string state = File.Exists(statePath) ? File.ReadAllText(statePath, Encoding.UTF8).Trim() : "";
+          targetDevice = DeserializeDeviceInfo(state);
+        }
         if (targetDevice == null) targetDevice = GetDefaultRenderDevice();
         deviceId = targetDevice != null ? targetDevice.FullId : null;
       }
@@ -438,20 +451,36 @@ function playbackDeviceName(captureDeviceName: string): string {
   return captureDeviceName.replace(/CABLE Output/i, 'CABLE Input');
 }
 
+function restoreDeviceName(): string {
+  return process.env.GREENROOM_SPOTIFY_RESTORE_DEVICE ?? process.env.SPOTICORD_SPOTIFY_RESTORE_DEVICE ?? '__greenroom_previous__';
+}
+
+function resolvePlaybackDeviceName(captureDeviceName: string, options: AudioRouterOptions): string {
+  return options.routeDeviceName ?? playbackDeviceName(captureDeviceName);
+}
+
+function resolveRestoreDeviceName(options: AudioRouterOptions): string {
+  return options.restoreDeviceName ?? restoreDeviceName();
+}
+
+function routerDataDir(options: AudioRouterOptions): string {
+  return options.dataDir ?? process.env.GREENROOM_DATA_DIR ?? process.env.SPOTICORD_DATA_DIR ?? process.env.SONICORD_DATA_DIR ?? process.cwd();
+}
+
 function powershellPath(): string {
   const root = process.env.SystemRoot ?? process.env.WINDIR;
   return root ? join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
 }
 
-function scriptPath(): string {
-  const dir = join(config.dataDir, 'runtime');
+function scriptPath(dataDir: string): string {
+  const dir = join(dataDir, 'runtime');
   mkdirSync(dir, { recursive: true });
   const file = join(dir, 'greenroom-audio-router.ps1');
   writeFileSync(file, ROUTER_SCRIPT, 'utf8');
   return file;
 }
 
-function runRouter(action: 'route' | 'restore', captureDeviceName: string): Promise<AudioRouteResult> {
+function runRouter(action: 'route' | 'restore', captureDeviceName: string, options: AudioRouterOptions = {}): Promise<AudioRouteResult> {
   if (isDisabled()) {
     return Promise.resolve({ ok: true, skipped: true, message: 'Automatic Spotify audio routing is disabled.' });
   }
@@ -459,7 +488,8 @@ function runRouter(action: 'route' | 'restore', captureDeviceName: string): Prom
     return Promise.resolve({ ok: true, skipped: true, message: 'Automatic Spotify audio routing is only available on Windows.' });
   }
 
-  const statePath = join(config.dataDir, 'runtime', 'spotify-output-device.txt');
+  const dataDir = routerDataDir(options);
+  const statePath = join(dataDir, 'runtime', 'spotify-output-device.txt');
   const child = spawn(
     powershellPath(),
     [
@@ -468,11 +498,11 @@ function runRouter(action: 'route' | 'restore', captureDeviceName: string): Prom
       '-ExecutionPolicy',
       'Bypass',
       '-File',
-      scriptPath(),
+      scriptPath(dataDir),
       '-Action',
       action,
       '-TargetName',
-      playbackDeviceName(captureDeviceName),
+      action === 'route' ? resolvePlaybackDeviceName(captureDeviceName, options) : resolveRestoreDeviceName(options),
       '-StatePath',
       statePath,
     ],
@@ -515,10 +545,10 @@ function summarizeRouterOutput(output: string): string {
   return line.length > 240 ? `${line.slice(0, 237)}...` : line;
 }
 
-export async function routeSpotifyToCapture(captureDeviceName: string): Promise<AudioRouteResult> {
-  return runRouter('route', captureDeviceName);
+export async function routeSpotifyToCapture(captureDeviceName: string, options: AudioRouterOptions = {}): Promise<AudioRouteResult> {
+  return runRouter('route', captureDeviceName, options);
 }
 
-export async function restoreSpotifyOutput(captureDeviceName: string): Promise<AudioRouteResult> {
-  return runRouter('restore', captureDeviceName);
+export async function restoreSpotifyOutput(captureDeviceName: string, options: AudioRouterOptions = {}): Promise<AudioRouteResult> {
+  return runRouter('restore', captureDeviceName, options);
 }
