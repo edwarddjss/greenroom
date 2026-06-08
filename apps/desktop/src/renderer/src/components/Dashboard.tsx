@@ -280,7 +280,7 @@ export function Dashboard(): JSX.Element {
 
       <div className="grid gap-4 min-[980px]:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
         <section className="grid min-w-0 min-h-0 content-start gap-4">
-          <Card className="space-y-5 shadow-highlight">
+          <Card className="min-w-0 space-y-5 shadow-highlight">
             <div className="flex items-start gap-3">
               <Icon name={homeIcon} size={30} className={`mt-0.5 shrink-0 ${TONE_TEXT[homeTone]}`} />
               <div className="min-w-0">
@@ -304,7 +304,7 @@ export function Dashboard(): JSX.Element {
             </div>
           </Card>
 
-          <Card className="space-y-3">
+          <Card className="min-w-0 space-y-3">
             <SectionHeader label="Use in Discord" icon={<Icon name="chat" size={16} />} />
             <div className="space-y-1 text-sm">
               {COMMANDS.map((c) => (
@@ -317,7 +317,7 @@ export function Dashboard(): JSX.Element {
           </Card>
         </section>
 
-        <Card className="flex min-h-[360px] flex-col">
+        <Card className="flex min-w-0 min-h-[360px] flex-col">
           <SectionHeader
             label="Recent activity"
             detail="What Greenroom has done this session."
