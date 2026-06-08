@@ -28,7 +28,7 @@ export const client = new Client({
   ],
 });
 
-const voiceSession = createVoiceSessionManager({ audioEngine, spotify, config });
+export const voiceSession = createVoiceSessionManager({ audioEngine, spotify, config });
 const PRESENCE_SYNC_INTERVAL_MS = 15_000;
 let lastActivityName: string | null | undefined;
 let presenceSyncRunning = false;
@@ -240,6 +240,7 @@ client.once('clientReady', () => {
   const tag = client.user?.tag ?? 'unknown';
   console.log(`\x1b[32m[Discord] Logged in as ${tag}!\x1b[0m`);
   emitHealth('discord_ready', { tag });
+  void voiceSession.routeSpotifyAudio();
   void syncPlaybackPresence();
   setInterval(() => void syncPlaybackPresence(), PRESENCE_SYNC_INTERVAL_MS);
   const profilesCount = Object.keys(spotify.profiles).length;

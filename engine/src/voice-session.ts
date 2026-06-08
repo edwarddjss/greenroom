@@ -37,7 +37,8 @@ export class VoiceSessionManager {
   private autoDisconnectTimer: NodeJS.Timeout | null = null;
   private cleanupInProgress = false;
   private spotifyAudioRouted = false;
-  private spotifyRouteAttempted = false;
+  private spotifyRouteInFlight: Promise<void> | null = null;
+  private spotifyRestoreInFlight: Promise<void> | null = null;
   activeEffects: AudioEffects = { bassboost: false, speed: 1.0 };
 
   constructor(deps: VoiceSessionDeps) {
@@ -115,17 +116,50 @@ export class VoiceSessionManager {
     this.currentChannelName = null;
     this.currentGuildName = null;
     this.activeSpotifyUserId = null;
-    this.spotifyRouteAttempted = false;
-    if (this.spotifyAudioRouted) {
-      this.spotifyAudioRouted = false;
-      void restoreSpotifyOutput(this.config.audioDevice).then((result) => {
-        if (result.ok) console.log(`[AudioRouting] ${result.message}`);
-        else console.warn(`[AudioRouting] Could not restore Spotify audio: ${result.message}`);
-      });
-    }
+    void this.restoreSpotifyAudio();
     if (hadActiveSession) emitHealth('voice_stopped', {});
     console.log('[Bot] Voice connection and audio streams cleaned up.');
     this.cleanupInProgress = false;
+  }
+
+  async routeSpotifyAudio(captureDeviceName = this.config.audioDevice): Promise<void> {
+    if (this.spotifyAudioRouted) return;
+    if (this.spotifyRouteInFlight) return this.spotifyRouteInFlight;
+
+    this.spotifyRouteInFlight = (async () => {
+      const route = await routeSpotifyToCapture(captureDeviceName);
+      if (route.ok) {
+        if (!route.skipped) this.spotifyAudioRouted = true;
+        console.log(`[AudioRouting] ${route.message}`);
+      } else {
+        console.warn(`[AudioRouting] Could not route Spotify automatically: ${route.message}`);
+      }
+    })();
+
+    try {
+      await this.spotifyRouteInFlight;
+    } finally {
+      this.spotifyRouteInFlight = null;
+    }
+  }
+
+  async restoreSpotifyAudio(): Promise<void> {
+    if (this.spotifyRouteInFlight) await this.spotifyRouteInFlight;
+    if (!this.spotifyAudioRouted) return;
+    if (this.spotifyRestoreInFlight) return this.spotifyRestoreInFlight;
+
+    this.spotifyAudioRouted = false;
+    this.spotifyRestoreInFlight = (async () => {
+      const result = await restoreSpotifyOutput(this.config.audioDevice);
+      if (result.ok) console.log(`[AudioRouting] ${result.message}`);
+      else console.warn(`[AudioRouting] Could not restore Spotify audio: ${result.message}`);
+    })();
+
+    try {
+      await this.spotifyRestoreInFlight;
+    } finally {
+      this.spotifyRestoreInFlight = null;
+    }
   }
 
   private async maximizeBitrate(voiceChannel: VoiceBasedChannel, guild: Guild): Promise<void> {
@@ -197,16 +231,7 @@ export class VoiceSessionManager {
 
   async startCapture(spotifyUserId: string): Promise<CaptureHandle> {
     const targetDevice = this.spotify.getUserAudioDevice(spotifyUserId) ?? this.config.audioDevice;
-    if (!this.spotifyAudioRouted && !this.spotifyRouteAttempted) {
-      this.spotifyRouteAttempted = true;
-      const route = await routeSpotifyToCapture(targetDevice);
-      if (route.ok) {
-        if (!route.skipped) this.spotifyAudioRouted = true;
-        console.log(`[AudioRouting] ${route.message}`);
-      } else {
-        console.warn(`[AudioRouting] Could not route Spotify automatically: ${route.message}`);
-      }
-    }
+    await this.routeSpotifyAudio(targetDevice);
     const handle = this.audioEngine.start(targetDevice, this.activeEffects);
     this.audioPlayer.play(handle.resource);
     this.activeSpotifyUserId = spotifyUserId;

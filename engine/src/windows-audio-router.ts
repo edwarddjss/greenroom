@@ -183,9 +183,6 @@ namespace Greenroom {
       RoInitialize(1);
 
       Process[] spotify = Process.GetProcessesByName("Spotify");
-      if (spotify.Length == 0) {
-        return "Spotify is not running, so audio routing was skipped.";
-      }
       Array.Sort(spotify, delegate(Process a, Process b) {
         bool aWindow = !String.IsNullOrWhiteSpace(a.MainWindowTitle);
         bool bWindow = !String.IsNullOrWhiteSpace(b.MainWindowTitle);
@@ -203,7 +200,8 @@ namespace Greenroom {
         }
 
         DeviceInfo previousPreference = ReadSpotifyRegistryOutput();
-        string previous = previousPreference != null ? SerializeDeviceInfo(previousPreference) : GetPersistedEndpoint(spotify[0].Id);
+        string previous = previousPreference != null ? SerializeDeviceInfo(previousPreference) : (spotify.Length > 0 ? GetPersistedEndpoint(spotify[0].Id) : null);
+        if (!String.IsNullOrWhiteSpace(previous) && previous.StartsWith(deviceId, StringComparison.OrdinalIgnoreCase)) previous = null;
         if (String.IsNullOrWhiteSpace(previous)) previous = SerializeDeviceInfo(GetDefaultRenderDevice());
         Directory.CreateDirectory(Path.GetDirectoryName(statePath));
         File.WriteAllText(statePath, previous ?? "", Encoding.UTF8);
@@ -230,7 +228,12 @@ namespace Greenroom {
 
       if (changed == 0) {
         changed = ApplySpotifyRegistryOutput(targetDevice);
-        if (changed == 0) throw new Exception(lastError ?? "Windows rejected the Spotify audio route.");
+        if (changed == 0) {
+          if (spotify.Length == 0) return action == "route"
+            ? "Spotify is not running, so audio routing was skipped."
+            : "Spotify is not running, so audio restore was skipped.";
+          throw new Exception(lastError ?? "Windows rejected the Spotify audio route.");
+        }
       }
 
       return action == "route"
@@ -496,7 +499,8 @@ function runRouter(action: 'route' | 'restore', captureDeviceName: string): Prom
     child.on('error', (err) => finish({ ok: false, message: err.message }));
     child.on('exit', (code) => {
       const message = summarizeRouterOutput(stdout.trim() || stderr.trim());
-      if (code === 0) finish({ ok: true, message: message || 'Spotify audio route updated.' });
+      const skipped = /was skipped|routing is disabled|only available on Windows/i.test(message);
+      if (code === 0) finish({ ok: true, skipped, message: message || 'Spotify audio route updated.' });
       else finish({ ok: false, message: message || `Spotify audio route failed with exit code ${code ?? 'unknown'}.` });
     });
   });

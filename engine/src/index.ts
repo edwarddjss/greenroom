@@ -1,8 +1,7 @@
 import net from 'node:net';
 import { config } from './config.js';
-import { client } from './bot.js';
+import { client, voiceSession } from './bot.js';
 import { spotify } from './spotify.js';
-import { audioEngine } from './audio.js';
 import { emitHealth } from './health.js';
 import { nluRouter } from './nlu/router.js';
 
@@ -66,12 +65,13 @@ async function main(): Promise<void> {
   }
 }
 
-const handleShutdown = (signal: string): void => {
+const handleShutdown = async (signal: string): Promise<void> => {
   console.log(`\n[Shutdown] Received ${signal}. Shutting down...`);
   try {
-    audioEngine.stop();
+    voiceSession.cleanup();
+    await voiceSession.restoreSpotifyAudio();
   } catch (e) {
-    console.error('[Shutdown] Audio engine stop error:', (e as Error).message);
+    console.error('[Shutdown] Voice cleanup error:', (e as Error).message);
   }
   try {
     spotify.stopAuthServer();
@@ -87,8 +87,8 @@ const handleShutdown = (signal: string): void => {
   process.exit(0);
 };
 
-process.on('SIGINT', () => handleShutdown('SIGINT'));
-process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+process.on('SIGINT', () => void handleShutdown('SIGINT'));
+process.on('SIGTERM', () => void handleShutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
   console.error('[Bootstrap] Uncaught exception:', err);
 });
