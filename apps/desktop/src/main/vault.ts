@@ -71,6 +71,10 @@ function deleteSecureValue(key: string): void {
   database().run('DELETE FROM secure_values WHERE key = ?', [key]);
 }
 
+function isVirtualAudioDeviceName(name: string): boolean {
+  return /\bVB(?:-Audio)?\b|VB-Audio Virtual Cable|\bCABLE(?:[-\s]?[A-D])?\b|CABLE\s+(Input|Output|In|Out)/i.test(name);
+}
+
 function migrateLegacyFiles(): void {
   if (database().exec('SELECT COUNT(*) FROM secure_values')[0]?.values[0]?.[0] !== 0) return;
 
@@ -154,7 +158,9 @@ export function loadAudioSettings(): Partial<AudioDeviceSettings> {
   const settings: Partial<AudioDeviceSettings> = {};
   for (const [field, key] of Object.entries(AUDIO_KEYS) as [keyof AudioDeviceSettings, string][]) {
     const value = getSecureValue(key);
-    if (value) settings[field] = value;
+    if (!value) continue;
+    if (field === 'restoreDevice' && isVirtualAudioDeviceName(value)) continue;
+    settings[field] = value;
   }
   return settings;
 }

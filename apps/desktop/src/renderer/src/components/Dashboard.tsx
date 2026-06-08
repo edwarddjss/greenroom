@@ -408,10 +408,10 @@ function StatusRow({ tone, label, value }: { tone: Tone; label: string; value: s
 
 function CommandRow({ emoji, command, detail }: { emoji: IconName; command: string; detail: string }): JSX.Element {
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]">
-      <Icon name={emoji} size={18} className="shrink-0 text-accent" />
+    <div className="flex items-start gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]">
+      <Icon name={emoji} size={18} className="mt-0.5 shrink-0 text-accent" />
       <Code className="shrink-0">{command}</Code>
-      <span className="min-w-0 truncate text-xs text-muted">{detail}</span>
+      <span className="min-w-0 text-xs leading-snug text-muted">{detail}</span>
     </div>
   );
 }

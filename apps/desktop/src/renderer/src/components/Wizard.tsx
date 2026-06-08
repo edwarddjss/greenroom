@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
-  AudioDeviceChoice,
   AudioDeviceReport,
   AudioDeviceSettings,
   DiscordValidation,
@@ -12,7 +11,8 @@ import type {
 import { EMPTY_PREREQS, botInviteUrl } from '@greenroom/shared';
 import { Icon } from './Icon';
 import { api } from '../lib/api';
-import { Button, Card, Code, Field, Modal, Pill, ProgressBar, SelectField } from './ui';
+import { AudioRoutingPanel, isAudioRoutingReady } from './AudioRoutingPanel';
+import { Button, Card, Code, Field, Modal, Pill, ProgressBar } from './ui';
 
 type StepId = 'welcome' | 'vbcable' | 'routing' | 'discord' | 'spotify' | 'commands' | 'invite' | 'model' | 'finish';
 const ORDER: StepId[] = ['welcome', 'vbcable', 'routing', 'discord', 'spotify', 'commands', 'invite', 'model', 'finish'];
@@ -145,7 +145,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   useEffect(() => {
     void scan();
     void api.tunnelStatus().then(setTunnel);
-    void api.audioDevicesList().then(setAudioReport);
+    void refreshAudioDevices();
   }, []);
 
   useEffect(() => {
@@ -203,7 +203,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
       case 'vbcable':
         return prereqs.vbcable.status === 'ok' && prereqs.ffmpeg.status === 'ok';
       case 'routing':
-        return Boolean(audioReport?.settings.captureDevice && audioReport.settings.routeDevice && audioReport.settings.restoreDevice);
+        return isAudioRoutingReady(audioReport);
       case 'discord':
         return discordResult?.ok === true;
       case 'spotify':
@@ -236,6 +236,9 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
   const copyText = async (value: string | undefined): Promise<void> => {
     if (!value) return;
     await navigator.clipboard.writeText(value);
+  };
+  const refreshAudioDevices = async (): Promise<void> => {
+    setAudioReport(await api.audioDevicesList());
   };
   const saveAudio = async (patch: Partial<AudioDeviceSettings>): Promise<void> => {
     setAudioSaving(true);
@@ -317,37 +320,14 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
         {step === 'routing' && (
           <div className="space-y-4 text-sm">
-            <p>Pick the virtual cable Greenroom uses while streaming, then pick where Spotify should return when the bot stops.</p>
-            {audioReport ? (
-              <div className="grid gap-3">
-                <DeviceSelect
-                  label="Send Spotify to Discord"
-                  value={audioReport.settings.routeDevice}
-                  devices={audioReport.render}
-                  placeholder="Select CABLE Input"
-                  onChange={(routeDevice) => void saveAudio({ routeDevice })}
-                />
-                <DeviceSelect
-                  label="Hear Spotify when stopped"
-                  value={audioReport.settings.restoreDevice}
-                  devices={audioReport.render.filter((device) => device.name !== audioReport.settings.routeDevice)}
-                  placeholder="Select headphones or speakers"
-                  onChange={(restoreDevice) => void saveAudio({ restoreDevice })}
-                />
-                <DeviceSelect
-                  label="Capture from"
-                  value={audioReport.settings.captureDevice}
-                  devices={audioReport.capture}
-                  placeholder="Select CABLE Output"
-                  onChange={(captureDevice) => void saveAudio({ captureDevice })}
-                />
-              </div>
-            ) : (
-              <div className="rounded-lg border border-line bg-sunken p-3 text-muted">Loading audio devices…</div>
-            )}
-            <p className="text-muted text-xs">
-              {audioSaving ? 'Saving…' : 'Greenroom changes Spotify only. Your Windows default speaker stays as-is.'}
-            </p>
+            <p>Choose where you want Spotify to play when Greenroom is not streaming. Greenroom handles the virtual cable automatically.</p>
+            <AudioRoutingPanel
+              report={audioReport}
+              saving={audioSaving}
+              onChange={(patch) => void saveAudio(patch)}
+              onRefresh={() => void refreshAudioDevices()}
+              context="onboarding"
+            />
           </div>
         )}
 
@@ -473,33 +453,6 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
 
       {guide && <GuideModal guide={GUIDES[guide]} onClose={() => setGuide(null)} />}
     </div>
-  );
-}
-
-function DeviceSelect({
-  label,
-  value,
-  devices,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  devices: AudioDeviceChoice[];
-  placeholder: string;
-  onChange: (value: string) => void;
-}): JSX.Element {
-  const hasValueInList = devices.some((device) => device.name === value);
-  return (
-    <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder}</option>
-      {value && !hasValueInList && <option value={value}>{value}</option>}
-      {devices.map((device) => (
-        <option key={`${device.kind}:${device.id}:${device.name}`} value={device.name}>
-          {device.name}
-        </option>
-      ))}
-    </SelectField>
   );
 }
 

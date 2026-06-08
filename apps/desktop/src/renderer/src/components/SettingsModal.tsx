@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type {
-  AudioDeviceChoice,
   AudioDeviceReport,
   AudioDeviceSettings,
   CredsStatus,
@@ -14,7 +13,8 @@ import type {
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
-import { Button, Code, Field, Modal, SectionHeader, SelectField } from './ui';
+import { AudioRoutingPanel } from './AudioRoutingPanel';
+import { Button, Code, Field, Modal, SectionHeader } from './ui';
 
 export function SettingsModal({
   prereqs,
@@ -52,7 +52,7 @@ export function SettingsModal({
   useEffect(() => {
     void api.tunnelStatus().then(setTunnel);
     void api.discordInviteUrl().then(setSavedInviteUrl);
-    void api.audioDevicesList().then(setAudioReport);
+    void refreshAudioDevices();
     void api.credsStatus().then((status) => {
       setCredsStatus(status);
       const discord = status.hasDiscord ? 'Discord set' : 'Discord missing';
@@ -148,6 +148,10 @@ export function SettingsModal({
     showToast('ok', `${label} copied.`);
   };
 
+  const refreshAudioDevices = async (): Promise<void> => {
+    setAudioReport(await api.audioDevicesList());
+  };
+
   const saveAudio = async (patch: Partial<AudioDeviceSettings>): Promise<void> => {
     setAudioSaving(true);
     try {
@@ -214,39 +218,15 @@ export function SettingsModal({
 
           <section className="space-y-3">
             <SectionHeader
-              label="Audio routing"
-              detail="Choose where Spotify goes when Greenroom starts and where it returns when Greenroom stops."
+              label="Spotify sound"
+              detail="Greenroom switches Spotify to Discord while streaming, then sends it back when you stop."
             />
-            {audioReport ? (
-              <div className="grid gap-3 md:grid-cols-3">
-                <DeviceSelect
-                  label="Send Spotify to Discord"
-                  value={audioReport.settings.routeDevice}
-                  devices={audioReport.render}
-                  placeholder="Select virtual cable input"
-                  onChange={(routeDevice) => void saveAudio({ routeDevice })}
-                />
-                <DeviceSelect
-                  label="Hear Spotify when stopped"
-                  value={audioReport.settings.restoreDevice}
-                  devices={audioReport.render.filter((device) => device.name !== audioReport.settings.routeDevice)}
-                  placeholder="Select headphones or speakers"
-                  onChange={(restoreDevice) => void saveAudio({ restoreDevice })}
-                />
-                <DeviceSelect
-                  label="Capture from"
-                  value={audioReport.settings.captureDevice}
-                  devices={audioReport.capture}
-                  placeholder="Select virtual cable output"
-                  onChange={(captureDevice) => void saveAudio({ captureDevice })}
-                />
-              </div>
-            ) : (
-              <div className="rounded-lg border border-line bg-sunken p-3 text-sm text-muted">Loading audio devices…</div>
-            )}
-            <p className="text-xs text-muted">
-              {audioSaving ? 'Saving…' : 'Changes apply the next time the bot starts.'}
-            </p>
+            <AudioRoutingPanel
+              report={audioReport}
+              saving={audioSaving}
+              onChange={(patch) => void saveAudio(patch)}
+              onRefresh={() => void refreshAudioDevices()}
+            />
           </section>
 
           <section className="space-y-3">
@@ -421,32 +401,5 @@ function CredentialValue({
         <Icon name={visible ? 'eyeOff' : 'eye'} size={15} />
       </button>
     </div>
-  );
-}
-
-function DeviceSelect({
-  label,
-  value,
-  devices,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  devices: AudioDeviceChoice[];
-  placeholder: string;
-  onChange: (value: string) => void;
-}): JSX.Element {
-  const hasValueInList = devices.some((device) => device.name === value);
-  return (
-    <SelectField label={label} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder}</option>
-      {value && !hasValueInList && <option value={value}>{value}</option>}
-      {devices.map((device) => (
-        <option key={`${device.kind}:${device.id}:${device.name}`} value={device.name}>
-          {device.name}
-        </option>
-      ))}
-    </SelectField>
   );
 }

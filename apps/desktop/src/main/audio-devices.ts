@@ -13,7 +13,7 @@ interface PsDevice {
 }
 
 function isVirtualCable(name: string): boolean {
-  return /VB-Audio Virtual Cable|CABLE (Input|Output)/i.test(name);
+  return /\bVB(?:-Audio)?\b|VB-Audio Virtual Cable|\bCABLE(?:[-\s]?[A-D])?\b|CABLE\s+(Input|Output|In|Out)/i.test(name);
 }
 
 function runPowerShell(script: string, timeoutMs = 10_000): Promise<string> {
@@ -124,7 +124,6 @@ function pickDevice(devices: AudioDeviceChoice[], matcher: RegExp): string {
 function pickRestoreDevice(render: AudioDeviceChoice[], routeDevice: string): string {
   return (
     render.find((device) => !device.isVirtualCable && device.name !== routeDevice)?.name ??
-    render.find((device) => device.name !== routeDevice)?.name ??
     ''
   );
 }
@@ -132,9 +131,10 @@ function pickRestoreDevice(render: AudioDeviceChoice[], routeDevice: string): st
 export async function getAudioDeviceReport(): Promise<AudioDeviceReport> {
   const { render, capture } = await scanWindowsDevices();
   const saved = loadAudioSettings();
-  const routeDevice = saved.routeDevice || pickDevice(render, /CABLE Input|VB-Audio Virtual Cable/i) || DEFAULT_ROUTE_DEVICE;
-  const captureDevice = saved.captureDevice || pickDevice(capture, /CABLE Output|VB-Audio Virtual Cable/i) || DEFAULT_CAPTURE_DEVICE;
-  const restoreDevice = saved.restoreDevice || pickRestoreDevice(render, routeDevice);
+  const routeDevice = saved.routeDevice || pickDevice(render, /CABLE (Input|In)\b|VB-Audio Virtual Cable/i) || DEFAULT_ROUTE_DEVICE;
+  const captureDevice = saved.captureDevice || pickDevice(capture, /CABLE (Output|Out)\b|VB-Audio Virtual Cable/i) || DEFAULT_CAPTURE_DEVICE;
+  const savedRestoreDevice = saved.restoreDevice && !isVirtualCable(saved.restoreDevice) ? saved.restoreDevice : '';
+  const restoreDevice = savedRestoreDevice || pickRestoreDevice(render, routeDevice);
 
   return {
     render,
