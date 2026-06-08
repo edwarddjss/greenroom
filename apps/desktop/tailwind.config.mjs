@@ -31,6 +31,7 @@ export default {
       boxShadow: {
         card: '0 1px 2px rgba(0,0,0,0.35)',
         raised: '0 16px 48px -12px rgba(0,0,0,0.7)',
+        highlight: 'inset 0 1px 0 rgba(255,255,255,0.05)',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },

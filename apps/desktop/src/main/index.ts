@@ -28,6 +28,12 @@ function createWindow(): void {
     },
   });
 
+  // The renderer opens the VB-Cable output device to drive the audio-reactive
+  // visualizer. Grant media to our own content only; deny everything else.
+  const ses = win.webContents.session;
+  ses.setPermissionRequestHandler((_wc, permission, callback) => callback(permission === 'media'));
+  ses.setPermissionCheckHandler((_wc, permission) => permission === 'media');
+
   win.on('ready-to-show', () => win?.show());
   win.on('closed', () => {
     win = null;

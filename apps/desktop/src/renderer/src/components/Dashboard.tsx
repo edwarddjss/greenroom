@@ -5,6 +5,9 @@ import { AlertTriangle, CheckCircle2, MessageCircle, Power, Settings, Square, Us
 import { api } from '../lib/api';
 import { Button, Card, Code, Modal, SectionHeader, StatusDot } from './ui';
 import { SettingsModal } from './SettingsModal';
+import { MusicVisualizer } from './MusicVisualizer';
+import { NowPlaying } from './NowPlaying';
+import { useLoopbackLevel } from '../lib/useLoopbackLevel';
 
 const STATE_LABEL: Record<EngineState, { label: string; tone: 'ok' | 'warn' | 'bad' | 'idle' }> = {
   idle: { label: 'Stopped', tone: 'idle' },
@@ -116,6 +119,7 @@ export function Dashboard(): JSX.Element {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [vbAlertDismissed, setVbAlertDismissed] = useState(false);
   const snapshotRef = useRef(snapshot);
+  const levelRef = useLoopbackLevel(snapshot.captureActive);
 
   const addActivity = (item: ActivityItem): void => {
     setActivity((prev) => [...prev.filter((entry) => entry.key !== item.key), item].slice(-50));
@@ -218,9 +222,18 @@ export function Dashboard(): JSX.Element {
         </div>
       </header>
 
+      {snapshot.captureActive && (
+        <NowPlaying
+          nowPlaying={snapshot.nowPlaying}
+          guildName={snapshot.guildName}
+          channelName={snapshot.channelName}
+          levelRef={levelRef}
+        />
+      )}
+
       <div className="grid gap-4 min-[980px]:grid-cols-[320px_minmax(0,1fr)]">
         <section className="grid min-h-0 content-start gap-4">
-          <Card className="space-y-5">
+          <Card className="space-y-5 shadow-highlight">
             <div className="flex items-start gap-3">
               <div
                 className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border ${
@@ -287,8 +300,12 @@ export function Dashboard(): JSX.Element {
           />
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
             {activity.length === 0 ? (
-              <div className="grid h-full place-items-center text-center text-muted">
-                <div>
+              <div className="relative grid h-full place-items-center overflow-hidden text-center text-muted">
+                {/* Living equalizer instead of a dead black box. Calm when idle, livelier once running. */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2">
+                  <MusicVisualizer active={running} levelRef={levelRef} />
+                </div>
+                <div className="relative">
                   <div className="text-sm font-medium text-text/80">{running ? 'Ready for your first request' : 'Nothing happening yet'}</div>
                   <div className="mt-1 text-xs">{running ? 'Use /play in Discord to start music.' : 'Start the bot when you want to use it.'}</div>
                 </div>

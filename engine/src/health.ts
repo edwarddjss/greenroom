@@ -13,6 +13,7 @@ export type HealthEvent =
   | 'voice_stopped'
   | 'spotify_profiles_loaded'
   | 'spotify_auth_saved'
+  | 'now_playing'
   | 'engine_error';
 
 export interface HealthPayload {

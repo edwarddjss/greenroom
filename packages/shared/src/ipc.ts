@@ -12,6 +12,7 @@ export type HealthEventName =
   | 'voice_stopped'
   | 'spotify_profiles_loaded'
   | 'spotify_auth_saved'
+  | 'now_playing'
   | 'engine_error';
 
 /**
@@ -90,6 +91,20 @@ export interface UpdateStatus {
   lastCheckedAt?: number;
 }
 
+/** What the host's Spotify is currently playing, surfaced for the now-playing hero. */
+export interface NowPlaying {
+  title: string;
+  artist: string;
+  /** Album cover URL from Spotify (640px). Undefined if Spotify returned no art. */
+  albumArtUrl?: string;
+  isPlaying: boolean;
+  /** Playback position + length so the renderer can interpolate a smooth progress bar between polls. */
+  progressMs?: number;
+  durationMs?: number;
+  /** Epoch ms when this snapshot was taken — anchor for client-side progress interpolation. */
+  sampledAt: number;
+}
+
 /** Full supervisor snapshot streamed to the renderer dashboard. */
 export interface EngineSnapshot {
   state: EngineState;
@@ -102,6 +117,8 @@ export interface EngineSnapshot {
   lastCommandError?: string;
   guildName?: string;
   channelName?: string;
+  /** Current track on the host's Spotify, or null when nothing is playing. */
+  nowPlaying?: NowPlaying | null;
 }
 
 /** The full preload-exposed API surface. No secret values are ever returned. */

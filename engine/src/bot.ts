@@ -16,7 +16,7 @@ import { emitHealth } from './health.js';
 import { nluRouter } from './nlu/router.js';
 import { extractDirectPlayQuery, extractSpotifyReference } from './spotify-utils.js';
 import { playbackActivityName } from './presence.js';
-import type { PlayResult } from './types.js';
+import type { PlaybackState, PlayResult } from './types.js';
 
 export const client = new Client({
   intents: [
@@ -32,15 +32,43 @@ const voiceSession = createVoiceSessionManager({ audioEngine, spotify, config })
 const PRESENCE_SYNC_INTERVAL_MS = 15_000;
 let lastActivityName: string | null | undefined;
 let presenceSyncRunning = false;
+let nowPlayingActive = false;
+
+/**
+ * Surface the host's current track to the desktop now-playing hero. Emitted every
+ * poll while a track is active (so the renderer can re-anchor its interpolated
+ * progress bar), and once when playback stops.
+ */
+function emitNowPlaying(state: PlaybackState | null): void {
+  if (state?.track) {
+    const { guildName, channelName } = voiceSession.getActiveContext();
+    emitHealth('now_playing', {
+      title: state.track.name,
+      artist: state.track.artists,
+      albumArtUrl: state.track.albumArtUrl ?? null,
+      isPlaying: state.isPlaying,
+      progressMs: state.progressMs ?? null,
+      durationMs: state.track.durationMs ?? null,
+      guildName: guildName ?? null,
+      channelName: channelName ?? null,
+      sampledAt: Date.now(),
+    });
+    nowPlayingActive = true;
+  } else if (nowPlayingActive) {
+    nowPlayingActive = false;
+    emitHealth('now_playing', { track: null });
+  }
+}
 
 async function syncPlaybackPresence(): Promise<void> {
   if (presenceSyncRunning || !client.user) return;
   presenceSyncRunning = true;
   try {
     const spotifyUserId = voiceSession.getActiveSpotifyUserId();
-    const activityName = spotifyUserId
-      ? playbackActivityName(await spotify.getPlaybackState(spotifyUserId))
-      : null;
+    const state = spotifyUserId ? await spotify.getPlaybackState(spotifyUserId) : null;
+    emitNowPlaying(state);
+
+    const activityName = state ? playbackActivityName(state) : null;
     if (activityName === lastActivityName) return;
     lastActivityName = activityName;
     client.user.setPresence({

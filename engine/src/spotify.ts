@@ -66,8 +66,9 @@ interface PlayerStateResponse {
   item?: {
     uri?: string;
     name: string;
+    duration_ms?: number;
     artists: { name: string }[];
-    album: { name: string };
+    album: { name: string; images?: { url: string; width?: number; height?: number }[] };
     external_urls: { spotify: string };
   } | null;
   device?: { name: string; type: string; volume_percent: number; id: string | null } | null;
@@ -534,14 +535,19 @@ export class SpotifyController extends EventEmitter {
     try {
       const state = await this.request<PlayerStateResponse>(discordUserId, '/me/player', 'GET');
       if (!state) return { isPlaying: false, track: null };
+      const item = state.item;
       return {
         isPlaying: state.is_playing,
-        track: state.item
+        ...(typeof state.progress_ms === 'number' ? { progressMs: state.progress_ms } : {}),
+        track: item
           ? {
-              name: state.item.name,
-              artists: state.item.artists.map((a) => a.name).join(', '),
-              album: state.item.album.name,
-              url: state.item.external_urls.spotify,
+              name: item.name,
+              artists: item.artists.map((a) => a.name).join(', '),
+              album: item.album.name,
+              url: item.external_urls.spotify,
+              // Spotify returns images largest-first; the first is the 640px cover.
+              ...(item.album.images?.[0]?.url ? { albumArtUrl: item.album.images[0].url } : {}),
+              ...(typeof item.duration_ms === 'number' ? { durationMs: item.duration_ms } : {}),
             }
           : null,
         device: state.device

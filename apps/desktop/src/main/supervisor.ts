@@ -6,6 +6,7 @@ import {
   type EngineState,
   type HealthEventName,
   type LogLine,
+  type NowPlaying,
   type PrereqReport,
 } from '@greenroom/shared';
 import { HEALTH_MARKER } from '@greenroom/engine/health';
@@ -31,6 +32,9 @@ export class Supervisor {
   private lastError: string | undefined;
   private spotifyLinked = false;
   private captureActive = false;
+  private nowPlaying: NowPlaying | null = null;
+  private guildName: string | undefined;
+  private channelName: string | undefined;
   private prereqs: PrereqReport = { ...EMPTY_PREREQS };
 
   private discordReady = false;
@@ -53,8 +57,11 @@ export class Supervisor {
       prereqs: this.prereqs,
       spotifyLinked: this.spotifyLinked,
       captureActive: this.captureActive,
+      nowPlaying: this.nowPlaying,
     };
     if (this.lastError) snap.lastError = this.lastError;
+    if (this.guildName) snap.guildName = this.guildName;
+    if (this.channelName) snap.channelName = this.channelName;
     return snap;
   }
 
@@ -115,6 +122,7 @@ export class Supervisor {
     this.transition('stopping');
     this.killChild();
     this.captureActive = false;
+    this.clearNowPlaying();
     this.transition('idle');
     return this.snapshot();
   }
@@ -140,6 +148,7 @@ export class Supervisor {
   private onExit(code: number | undefined): void {
     this.child = null;
     this.captureActive = false;
+    this.clearNowPlaying();
     if (this.userStopped) {
       this.transition('idle');
       return;
@@ -189,6 +198,13 @@ export class Supervisor {
         break;
       case 'voice_stopped':
         this.captureActive = false;
+        this.clearNowPlaying();
+        this.emit();
+        break;
+      case 'now_playing':
+        this.nowPlaying = parseNowPlaying(data);
+        this.guildName = typeof data?.guildName === 'string' ? data.guildName : undefined;
+        this.channelName = typeof data?.channelName === 'string' ? data.channelName : undefined;
         this.emit();
         break;
       case 'spotify_profiles_loaded':
@@ -258,6 +274,12 @@ export class Supervisor {
     this.cb.onState(this.snapshot());
   }
 
+  private clearNowPlaying(): void {
+    this.nowPlaying = null;
+    this.guildName = undefined;
+    this.channelName = undefined;
+  }
+
   private clearTimers(): void {
     for (const t of [this.backoffTimer, this.watchdog, this.healthyTimer]) {
       if (t) clearTimeout(t);
@@ -266,4 +288,23 @@ export class Supervisor {
     this.watchdog = null;
     this.healthyTimer = null;
   }
+}
+
+/** Coerce a `now_playing` health payload into a typed NowPlaying, or null when cleared/malformed. */
+function parseNowPlaying(data: Record<string, unknown> | undefined): NowPlaying | null {
+  if (!data || data.track === null) return null;
+  if (typeof data.title !== 'string' || typeof data.artist !== 'string') return null;
+  const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
+  const playing: NowPlaying = {
+    title: data.title,
+    artist: data.artist,
+    isPlaying: data.isPlaying === true,
+    sampledAt: num(data.sampledAt) ?? Date.now(),
+  };
+  if (typeof data.albumArtUrl === 'string') playing.albumArtUrl = data.albumArtUrl;
+  const progress = num(data.progressMs);
+  if (progress !== undefined) playing.progressMs = progress;
+  const duration = num(data.durationMs);
+  if (duration !== undefined) playing.durationMs = duration;
+  return playing;
 }

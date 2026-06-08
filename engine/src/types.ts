@@ -48,11 +48,14 @@ export interface PlaybackTrack {
   artists: string;
   album: string;
   url: string;
+  albumArtUrl?: string;
+  durationMs?: number;
 }
 
 export interface PlaybackState {
   isPlaying: boolean;
   track: PlaybackTrack | null;
+  progressMs?: number;
   device?: { name: string; type: string; volume: number; id: string | null } | null;
   error?: string;
 }

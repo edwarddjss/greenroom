@@ -31,6 +31,8 @@ export class VoiceSessionManager {
 
   private voiceConnection: VoiceConnection | null = null;
   private currentChannelId: string | null = null;
+  private currentChannelName: string | null = null;
+  private currentGuildName: string | null = null;
   private activeSpotifyUserId: string | null = null;
   private autoDisconnectTimer: NodeJS.Timeout | null = null;
   private cleanupInProgress = false;
@@ -62,6 +64,10 @@ export class VoiceSessionManager {
 
   getActiveSpotifyUserId(): string | null {
     return this.isActive() ? this.activeSpotifyUserId : null;
+  }
+
+  getActiveContext(): { guildName: string | null; channelName: string | null } {
+    return { guildName: this.currentGuildName, channelName: this.currentChannelName };
   }
 
   updateEffects(type: string): AudioEffects {
@@ -106,6 +112,8 @@ export class VoiceSessionManager {
       this.voiceConnection = null;
     }
     this.currentChannelId = null;
+    this.currentChannelName = null;
+    this.currentGuildName = null;
     this.activeSpotifyUserId = null;
     this.spotifyRouteAttempted = false;
     if (this.spotifyAudioRouted) {
@@ -232,6 +240,8 @@ export class VoiceSessionManager {
 
     this.voiceConnection = await this.connectWithRetry(voiceChannel, guild);
     this.currentChannelId = voiceChannel.id;
+    this.currentChannelName = voiceChannel.name;
+    this.currentGuildName = guild.name;
     this.attachConnectionLifecycle(this.voiceConnection);
     this.voiceConnection.subscribe(this.audioPlayer);
 
