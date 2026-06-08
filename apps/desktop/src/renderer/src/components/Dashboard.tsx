@@ -155,6 +155,9 @@ export function Dashboard(): JSX.Element {
     const previous = snapshotRef.current;
     snapshotRef.current = next;
     setSnapshot(next);
+    if (next.state === 'starting' && previous.state !== 'starting') {
+      addActivity({ key: 'bot-starting', ts: Date.now(), title: 'Starting the bot…', detail: 'Connecting to Discord and Spotify.', tone: 'warn' });
+    }
     if (next.state === 'running' && previous.state !== 'running') {
       addActivity({ key: 'bot-online', ts: Date.now(), title: 'Bot is online', detail: 'Ready for commands in Discord.', tone: 'ok' });
     }
@@ -196,32 +199,43 @@ export function Dashboard(): JSX.Element {
   const stateInfo = STATE_LABEL[snapshot.state];
   const vbCableProblem = snapshot.prereqs.vbcable.status !== 'ok' && snapshot.prereqs.vbcable.status !== 'unknown';
   const needsSetup = !snapshot.spotifyLinked;
-  const homeTone: Tone = snapshot.lastError ? 'bad' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
+  const transitioning = snapshot.state === 'starting' || snapshot.state === 'stopping';
+  const homeTone: Tone = snapshot.lastError ? 'bad' : transitioning ? 'warn' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
   const homeIcon: IconName = snapshot.lastError
     ? 'stopsign'
-    : homeTone === 'ok'
-      ? snapshot.captureActive ? 'note' : 'check'
-      : homeTone === 'warn'
-        ? 'warning'
-        : 'radio';
+    : transitioning
+      ? 'radio'
+      : homeTone === 'ok'
+        ? snapshot.captureActive ? 'note' : 'check'
+        : homeTone === 'warn'
+          ? 'warning'
+          : 'radio';
   const homeTitle = snapshot.lastError
     ? 'Something needs attention'
-    : !running
-      ? 'Bot is off'
-      : needsSetup
-        ? 'Spotify needs linking'
-        : snapshot.captureActive
-          ? 'Music is streaming'
-          : 'Ready in Discord';
+    : snapshot.state === 'starting'
+      ? 'Starting the bot…'
+      : snapshot.state === 'stopping'
+        ? 'Stopping…'
+        : !running
+          ? 'Bot is off'
+          : needsSetup
+            ? 'Spotify needs linking'
+            : snapshot.captureActive
+              ? 'Music is streaming'
+              : 'Ready in Discord';
   const nextStep = snapshot.lastError
     ? snapshot.lastError
-    : !running
-      ? 'Start the bot before using Discord commands.'
-      : needsSetup
-        ? 'In Discord, run /login and link your Spotify account.'
-        : snapshot.captureActive
-          ? 'Use /queue to add more music or /clearqueue to empty a long playlist.'
-          : 'Use /play with a song name, playlist, or Spotify link.';
+    : snapshot.state === 'starting'
+      ? 'Connecting to Discord and Spotify. This usually takes a few seconds.'
+      : snapshot.state === 'stopping'
+        ? 'Shutting down the engine.'
+        : !running
+          ? 'Start the bot before using Discord commands.'
+          : needsSetup
+            ? 'In Discord, run /login and link your Spotify account.'
+            : snapshot.captureActive
+              ? 'Use /queue to add more music or /clearqueue to empty a long playlist.'
+              : 'Use /play with a song name, playlist, or Spotify link.';
   return (
     <div className="mx-auto h-full max-w-5xl overflow-auto p-4 sm:p-6">
       <div className="flex min-h-full flex-col gap-4">
@@ -264,8 +278,8 @@ export function Dashboard(): JSX.Element {
         />
       )}
 
-      <div className="grid gap-4 min-[980px]:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="grid min-h-0 content-start gap-4">
+      <div className="grid gap-4 min-[980px]:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <section className="grid min-w-0 min-h-0 content-start gap-4">
           <Card className="space-y-5 shadow-highlight">
             <div className="flex items-start gap-3">
               <Icon name={homeIcon} size={30} className={`mt-0.5 shrink-0 ${TONE_TEXT[homeTone]}`} />
@@ -310,34 +324,39 @@ export function Dashboard(): JSX.Element {
             icon={<Icon name="sparkles" size={16} />}
             className="mb-3"
           />
-          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
-            {activity.length === 0 ? (
-              <div className="relative grid h-full place-items-center overflow-hidden text-center text-muted">
-                {/* Living equalizer instead of a dead black box. Calm when idle, livelier once running. */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2">
-                  <MusicVisualizer active={running} levelRef={levelRef} />
-                </div>
-                <div className="relative">
-                  <div className="text-sm font-medium text-text/80">{running ? 'Ready for your first request' : 'Nothing happening yet'}</div>
-                  <div className="mt-1 text-xs">{running ? 'Use /play in Discord to start music.' : 'Start the bot when you want to use it.'}</div>
-                </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-sunken text-sm">
+            {/* Living equalizer: a persistent footer whenever the bot is on (reactive while streaming),
+                plus the idle empty state. Sits behind the scrolling list. */}
+            {(running || activity.length === 0) && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 opacity-60">
+                <MusicVisualizer active={running} levelRef={levelRef} />
               </div>
-            ) : (
-              activity.map((item) => {
-                return (
-                <div key={item.key} className="mb-2 flex gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
-                  <Icon name={item.tone === 'idle' ? 'note' : TONE_ICON[item.tone]} size={15} className={`mt-0.5 shrink-0 ${TONE_TEXT[item.tone]}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="min-w-0 break-words font-medium">{item.title}</span>
-                      <span className="shrink-0 text-xs text-muted">{new Date(item.ts).toLocaleTimeString()}</span>
-                    </div>
-                    {item.detail && <div className="mt-0.5 break-words text-xs text-muted">{item.detail}</div>}
+            )}
+            <div className="relative h-full overflow-auto p-3">
+              {activity.length === 0 ? (
+                <div className="grid h-full place-items-center text-center text-muted">
+                  <div>
+                    <div className="text-sm font-medium text-text/80">{running ? 'Ready for your first request' : 'Nothing happening yet'}</div>
+                    <div className="mt-1 text-xs">{running ? 'Use /play in Discord to start music.' : 'Start the bot when you want to use it.'}</div>
                   </div>
                 </div>
-                );
-              })
-            )}
+              ) : (
+                activity.map((item) => {
+                  return (
+                  <div key={item.key} className="mb-2 flex gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
+                    <Icon name={item.tone === 'idle' ? 'note' : TONE_ICON[item.tone]} size={15} className={`mt-0.5 shrink-0 ${TONE_TEXT[item.tone]}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="min-w-0 break-words font-medium">{item.title}</span>
+                        <span className="shrink-0 text-xs text-muted">{new Date(item.ts).toLocaleTimeString()}</span>
+                      </div>
+                      {item.detail && <div className="mt-0.5 break-words text-xs text-muted">{item.detail}</div>}
+                    </div>
+                  </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </Card>
       </div>
@@ -381,8 +400,8 @@ export function Dashboard(): JSX.Element {
 function StatusRow({ tone, label, value }: { tone: Tone; label: string; value: string }): JSX.Element {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line/60 py-2 last:border-0">
-      <span className="truncate text-[13px] text-muted">{label}</span>
-      <span className={`shrink-0 text-[13px] font-medium ${TONE_TEXT[tone]}`}>{value}</span>
+      <span className="min-w-0 truncate text-[13px] text-muted">{label}</span>
+      <span className={`shrink-0 truncate text-[13px] font-medium ${TONE_TEXT[tone]}`}>{value}</span>
     </div>
   );
 }
