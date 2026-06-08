@@ -36,7 +36,7 @@ a {
   -webkit-app-region: no-drag;
 }
 
-/* Slim, recessive scrollbars — the default chunky ones read as unstyled/vibe-coded. */
+/* Slim, recessive scrollbars - the default chunky ones read as unstyled/vibe-coded. */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.14) transparent;

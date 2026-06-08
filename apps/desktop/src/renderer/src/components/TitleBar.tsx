@@ -1,6 +1,6 @@
 import { api } from '../lib/api';
 
-// Minimal geometric window-control glyphs — kept deliberately non-emoji for clarity.
+// Minimal geometric window-control glyphs - kept deliberately non-emoji for clarity.
 const glyph = { strokeWidth: 1.2, fill: 'none', stroke: 'currentColor' } as const;
 
 export function TitleBar(): JSX.Element {

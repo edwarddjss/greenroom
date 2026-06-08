@@ -1,6 +1,6 @@
 {
   "name": "@greenroom/desktop",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "private": true,
   "description": "greenroom desktop client (Electron) for Windows",
   "main": "out/main/index.js",
@@ -70,6 +70,9 @@
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
+    "@iconify-json/streamline-plump": "^1.2.0",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/sql.js": "^1.4.11",
@@ -83,6 +86,7 @@
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
+    "unplugin-icons": "^23.0.1",
     "vite": "^5.4.11"
   }
 }

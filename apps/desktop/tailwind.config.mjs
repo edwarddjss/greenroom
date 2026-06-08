@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // greenroom's own accent — a deeper emerald, deliberately not Spotify's #1DB954.
+        // greenroom's own accent - a deeper emerald, deliberately not Spotify's #1DB954.
         accent: { DEFAULT: '#1FA877', hover: '#27C089', ink: '#04140D' },
         // Platform colors are semantic: use only where they literally mean that service.
         spotify: '#1DB954',
@@ -16,7 +16,7 @@ export default {
         sunken: '#0E0E13',
         text: '#F3F3F5',
         muted: '#9A9AA8',
-        // One hairline, one emphasis line — replaces the ad-hoc white/[0.0x] sprawl.
+        // One hairline, one emphasis line - replaces the ad-hoc white/[0.0x] sprawl.
         line: 'rgba(255,255,255,0.07)',
         'line-strong': 'rgba(255,255,255,0.13)',
         danger: '#ED4245',

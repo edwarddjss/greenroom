@@ -17,8 +17,8 @@ newest release.
    the `v*` tag: it installs deps, downloads ffmpeg, builds, and runs
    `electron-builder --publish always`. When it finishes, a public Release
    `v0.1.1` exists with:
-   - `greenroom-Setup-x64.exe` — the NSIS installer
-   - `latest.yml` + blockmap — the electron-updater feed
+   - `greenroom-Setup-x64.exe` - the NSIS installer
+   - `latest.yml` + blockmap - the electron-updater feed
 
 The tag version must match `package.json`'s `version`, or electron-builder will
 publish to a different release than the tag.
@@ -29,7 +29,7 @@ but it only publishes when the ref is a version tag.
 ## Auto-update
 
 Installed apps call `autoUpdater.checkForUpdatesAndNotify()` on launch
-(packaged builds only — see `apps/desktop/src/main/index.ts`) and pull new
+(packaged builds only - see `apps/desktop/src/main/index.ts`) and pull new
 versions from this repo's Releases via the `publish` block in
 `apps/desktop/package.json`. Shipping a higher version through the steps above is
 all it takes; existing installs update themselves.

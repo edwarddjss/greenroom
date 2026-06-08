@@ -42,7 +42,7 @@ As of March 2026, Discord mandates **DAVE (MLS End-to-End Encryption)** for all 
 ## 🧠 State Machines & Dynamic Audio Hot-Swapping
 
 ### 1. Active Buffer Probing (Seamless Effect Swaps)
-To prevent audible stutters (300ms–900ms silent cuts) when users toggle dynamic DSP effects (Bass Boost, Speed Up, Slowed), `audio.js` implements an asynchronous **hot-swap transition pipeline**:
+To prevent audible stutters (300ms-900ms silent cuts) when users toggle dynamic DSP effects (Bass Boost, Speed Up, Slowed), `audio.js` implements an asynchronous **hot-swap transition pipeline**:
 - **Probing:** The new FFmpeg process is spawned and piped into a `PassThrough` stream wrapper.
 - **Buffer Detection:** We listen for the first `data` event on the `PassThrough` stream to ensure FFmpeg is actively outputting PCM blocks.
 - **Atomic Playback Swap:** The moment data is detected, the Discord `audioPlayer` immediately swaps to the new resource.

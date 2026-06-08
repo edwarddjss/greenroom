@@ -2,7 +2,7 @@
   "name": "@greenroom/engine",
   "version": "0.1.0",
   "private": true,
-  "description": "greenroom engine — Discord client + Spotify Connect control + FFmpeg loopback capture",
+  "description": "greenroom engine - Discord client + Spotify Connect control + FFmpeg loopback capture",
   "type": "module",
   "main": "dist/index.js",
   "exports": {

@@ -8,7 +8,7 @@ test('playbackActivityName shows the current song and artist', () => {
     isPlaying: true,
     track: { name: 'Hold Me Down', artists: 'borne', album: 'Hold Me Down', url: 'https://open.spotify.com/track/example' },
   };
-  assert.equal(playbackActivityName(state), 'Hold Me Down — borne');
+  assert.equal(playbackActivityName(state), 'Hold Me Down - borne');
 });
 
 test('playbackActivityName clears when Spotify is paused', () => {

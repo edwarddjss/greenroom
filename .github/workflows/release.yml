@@ -1,7 +1,7 @@
 name: Release desktop app
 
 # Build the Windows installer on a native Windows runner (no wine) and publish
-# it — plus the electron-updater feed — to a GitHub Release. Trigger by pushing
+# it - plus the electron-updater feed - to a GitHub Release. Trigger by pushing
 # a version tag that matches package.json, e.g. `git tag v0.1.0 && git push --tags`.
 on:
   push:

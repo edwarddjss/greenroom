@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { EMPTY_PREREQS, botInviteUrl } from '@greenroom/shared';
-import { Emoji } from './Emoji';
+import { Icon } from './Icon';
 import { api } from '../lib/api';
 import { Button, Card, Code, Field, Modal, Pill, ProgressBar } from './ui';
 
@@ -278,7 +278,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             <Pill tone={prereqs.vbcable.status === 'ok' ? 'ok' : 'bad'} label="VB-Cable" detail={prereqs.vbcable.detail} />
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={() => setGuide('vbcable')}>
-                <Emoji name="play" size={16} />
+                <Icon name="play" size={16} />
                 Show guide
               </Button>
               {prereqs.vbcable.status !== 'ok' && (
@@ -300,11 +300,11 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             <p>In the Windows Volume Mixer, set <b>Spotify</b>'s output device to <b>CABLE Input (VB-Audio Virtual Cable)</b>. Keep your system output on your real speakers so only Spotify is routed.</p>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={() => setGuide('routing')}>
-                <Emoji name="play" size={16} />
+                <Icon name="play" size={16} />
                 Show guide
               </Button>
               <Button variant="ghost" onClick={() => window.open(GUIDES.routing.primaryUrl, '_blank')}>
-                <Emoji name="link" size={16} />
+                <Icon name="link" size={16} />
                 Open volume mixer
               </Button>
             </div>
@@ -321,11 +321,11 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             <p>Create a bot at the Discord Developer Portal, enable Message Content Intent, and paste the token and Application ID.</p>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={() => setGuide('discord')}>
-                <Emoji name="play" size={16} />
+                <Icon name="play" size={16} />
                 Show guide
               </Button>
               <Button variant="ghost" onClick={() => window.open(GUIDES.discord.primaryUrl, '_blank')}>
-                <Emoji name="link" size={16} />
+                <Icon name="link" size={16} />
                 Open portal
               </Button>
             </div>
@@ -347,11 +347,11 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
             <p>greenroom creates the public Spotify callback before you enter credentials. Add this exact Redirect URI in the Spotify Developer Dashboard:</p>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={() => setGuide('spotify')}>
-                <Emoji name="play" size={16} />
+                <Icon name="play" size={16} />
                 Show guide
               </Button>
               <Button variant="ghost" onClick={() => window.open(GUIDES.spotify.primaryUrl, '_blank')}>
-                <Emoji name="link" size={16} />
+                <Icon name="link" size={16} />
                 Open dashboard
               </Button>
             </div>
@@ -364,7 +364,7 @@ export function Wizard({ onDone }: { onDone: () => void }): JSX.Element {
                   {tunnelBusy ? 'Preparing…' : tunnel.callbackUrl ? 'Refresh redirect' : 'Retry'}
                 </Button>
                 <Button variant="ghost" disabled={!tunnel.callbackUrl} onClick={() => void copyText(tunnel.callbackUrl)}>
-                  <Emoji name="clipboard" size={16} />
+                  <Icon name="clipboard" size={16} />
                   Copy
                 </Button>
               </div>
@@ -479,7 +479,7 @@ function GuideModal({ guide, onClose }: { guide: Guide; onClose: () => void }): 
         ) : (
           <div className="rounded-lg border border-line bg-sunken p-4">
             <div className="mb-3 flex items-center gap-2 text-[13px] font-medium">
-              <Emoji name="play" size={16} />
+              <Icon name="play" size={16} />
               Setup walkthrough
             </div>
             <div className="space-y-2">
@@ -496,7 +496,7 @@ function GuideModal({ guide, onClose }: { guide: Guide; onClose: () => void }): 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Close</Button>
           <Button onClick={() => window.open(guide.primaryUrl, '_blank')}>
-            <Emoji name="link" size={16} />
+            <Icon name="link" size={16} />
             {guide.primaryLabel}
           </Button>
         </div>

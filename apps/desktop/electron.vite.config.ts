@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
+import Icons from 'unplugin-icons/vite';
 
 export default defineConfig({
   main: {
@@ -24,7 +25,8 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
-    plugins: [react()],
+    // Icons compiled to React components at build time (offline, tree-shaken) - Streamline Plump.
+    plugins: [react(), Icons({ compiler: 'jsx', jsx: 'react' })],
     resolve: {
       alias: { '@': resolve(__dirname, 'src/renderer/src') },
     },

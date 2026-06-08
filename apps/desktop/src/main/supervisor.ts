@@ -80,7 +80,7 @@ export class Supervisor {
     const parsed = EngineCredentials.safeParse(loadCreds());
     if (!parsed.success) {
       this.state = 'idle';
-      this.lastError = 'Credentials incomplete — finish onboarding first.';
+      this.lastError = 'Credentials incomplete - finish onboarding first.';
       this.emit();
       return this.snapshot();
     }
@@ -161,7 +161,7 @@ export class Supervisor {
 
   private scheduleRestart(): void {
     if (this.restartAttempts >= MAX_RESTART_ATTEMPTS) {
-      this.lastError = `Engine failed ${MAX_RESTART_ATTEMPTS} times. Stopped retrying — check the logs.`;
+      this.lastError = `Engine failed ${MAX_RESTART_ATTEMPTS} times. Stopped retrying - check the logs.`;
       this.emit();
       return;
     }

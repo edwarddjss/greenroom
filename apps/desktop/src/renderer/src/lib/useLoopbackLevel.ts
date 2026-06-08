@@ -7,7 +7,7 @@ const DEVICE_HINT = /(cable|vb-audio|voicemeeter|loopback)/i;
 
 /**
  * Reads the live music level off the virtual audio cable the engine streams through,
- * entirely in the renderer — no engine RMS wiring needed. Returns a ref the
+ * entirely in the renderer - no engine RMS wiring needed. Returns a ref the
  * visualizer samples each frame (no re-renders). Falls back silently to 0 (ambient
  * motion) when there's no cable, no permission, or no secure context.
  */
@@ -40,7 +40,7 @@ export function useLoopbackLevel(active: boolean): MutableRefObject<number> {
         const cable = devices.find((d) => d.kind === 'audioinput' && DEVICE_HINT.test(d.label));
 
         if (!cable) {
-          // No virtual cable to read — don't visualize the user's microphone.
+          // No virtual cable to read - don't visualize the user's microphone.
           probe.getTracks().forEach((t) => t.stop());
           return;
         }
@@ -74,7 +74,7 @@ export function useLoopbackLevel(active: boolean): MutableRefObject<number> {
         };
         tick();
       } catch {
-        // Permission denied / insecure context / device busy — stay on ambient motion.
+        // Permission denied / insecure context / device busy - stay on ambient motion.
         stop();
       }
     };

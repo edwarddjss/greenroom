@@ -191,7 +191,7 @@ export class SpotifyController extends EventEmitter {
       this.expressServer = null;
       if (err.code === 'EADDRINUSE') {
         console.error(
-          `\x1b[31m[Spotify] Port ${config.port} is already in use. Stop the other instance or change PORT — Spotify /login cannot work until the auth server binds.\x1b[0m`,
+          `\x1b[31m[Spotify] Port ${config.port} is already in use. Stop the other instance or change PORT - Spotify /login cannot work until the auth server binds.\x1b[0m`,
         );
       } else {
         console.error('[Spotify] Auth server error:', err.message);

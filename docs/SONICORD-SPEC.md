@@ -1,8 +1,8 @@
-# greenroom — Product & Engineering Spec
+# greenroom - Product & Engineering Spec
 
 **Tagline:** Stream your Spotify into any Discord voice channel. The self-hosted greenroom successor.
 **Domain:** greenroom (confirmed available, NXDOMAIN as of 2026-06-02)
-**Scope:** Windows-only. Not a "DJ" bot — a personal Spotify-to-Discord streaming bot.
+**Scope:** Windows-only. Not a "DJ" bot - a personal Spotify-to-Discord streaming bot.
 
 ---
 
@@ -15,7 +15,7 @@ so there is no shared infrastructure cost, no Spotify ToS exposure for a third p
 and the user's own Spotify Premium session does the playback.
 
 The friction with self-hosting is setup: VB-Cable, FFmpeg, Discord app + token,
-Spotify developer app, audio routing. **greenroom's product is the onboarding** — a
+Spotify developer app, audio routing. **greenroom's product is the onboarding** - a
 desktop client that bundles the runtime and walks the user through every step with
 embedded video, live credential validation, and one-click prerequisite installs.
 
@@ -28,12 +28,12 @@ embedded video, live credential validation, and one-click prerequisite installs.
 | Onboarding | Interactive wizard + embedded Remotion MP4 clips, with live validation |
 | Landing page | Next.js on Vercel |
 | Brand | greenroom / greenroom |
-| Language | **Strict TypeScript across the whole monorepo** — engine, desktop, landing, media |
+| Language | **Strict TypeScript across the whole monorepo** - engine, desktop, landing, media |
 | Runtime | Engine migrated to TS, compiled to JS, supervised as a child process |
 
 ## 2b. TypeScript standards
 
-Single `tsconfig.base.json` extended by every package. Strict is non-negotiable —
+Single `tsconfig.base.json` extended by every package. Strict is non-negotiable -
 "strict properties" specifically means initialization + optional-property strictness:
 
 ```jsonc
@@ -145,7 +145,7 @@ Credentials the wizard ultimately collects (engine env contract, from
 
 ### Steps
 
-0. **Welcome** — what greenroom does; auto-run a full prereq scan (FFmpeg, VB-Cable,
+0. **Welcome** - what greenroom does; auto-run a full prereq scan (FFmpeg, VB-Cable,
    Spotify app, port 8888) and render a live checklist. Premium-required notice.
 
 1. **VB-Audio Virtual Cable**
@@ -171,7 +171,7 @@ Credentials the wizard ultimately collects (engine env contract, from
    - *Live validation:* `GET https://discord.com/api/v10/users/@me` with header
      `Authorization: Bot <token>`. `200` → show bot username + avatar (green);
      `401` → "Invalid token"; on success, also verify `application_id`/client ID via
-     `GET /oauth2/applications/@me`. Client-ID format check: 17–20 digit snowflake.
+     `GET /oauth2/applications/@me`. Client-ID format check: 17-20 digit snowflake.
 
 4. **Spotify developer app**
    - Clip: dashboard → create app → set Redirect URI **exactly**
@@ -182,10 +182,10 @@ Credentials the wizard ultimately collects (engine env contract, from
      auth). `200` → green; `400 invalid_client` → bad ID/secret. (Note: this only
      proves the app credentials; per-user playback auth happens later via `/login`.)
 
-5. **Register slash commands** *(new — currently a manual `npm run register` step)*
+5. **Register slash commands** *(new - currently a manual `npm run register` step)*
    - The app runs [register-commands.js](../register-commands.js) as a one-shot child
      with the validated env. If `DISCORD_GUILD_ID` is set (optional advanced field),
-     commands register instantly to that guild; otherwise globally (≤1h propagation —
+     commands register instantly to that guild; otherwise globally (≤1h propagation -
      surfaced as a notice). Success/failure parsed from the child's exit code + output.
 
 6. **Invite the bot**
@@ -193,21 +193,21 @@ Credentials the wizard ultimately collects (engine env contract, from
      applications.commands` and the permission bitfield for Send Messages, Embed Links,
      Connect, Speak, Use Voice Activity. "Open invite" → browser; confirm-by-checkbox.
 
-7. **Finish setup** — persist credentials to the vault (§6).
+7. **Finish setup** - persist credentials to the vault (§6).
 
-8. **Prove it works (end-to-end success — TD1).** The wizard does not call itself done
+8. **Prove it works (end-to-end success - TD1).** The wizard does not call itself done
    at credential entry; it proves the loop. It starts the engine, waits for the
    `discord_ready` + `auth_server_listening` health events, walks the user through
    `/login` (Spotify OAuth), then asks them to join a voice channel and runs a capture
    probe. Success = a non-silent RMS reading on the bundled FFmpeg capture **and** the
-   bot streaming in that channel — surfaced in-app as "Discord heard your Spotify."
+   bot streaming in that channel - surfaced in-app as "Discord heard your Spotify."
    Explicit failure branches: no active Spotify device, not Premium, capture silent
    (routing wrong → bounce to Step 2), bot not invited, voice connect failed. Only then
    → dashboard.
 
 ### Error/retry conventions
 - Validation calls have a 10s timeout; network failure → "Couldn't reach
-  Discord/Spotify — check your connection" with a Retry button (does not advance).
+  Discord/Spotify - check your connection" with a Retry button (does not advance).
 - All inputs are revalidated on edit (debounced 600ms); a previously-ok step that is
   edited reverts to `pending`.
 - Secrets are never echoed back after save; fields show a masked "•••• (saved)" state.
@@ -260,7 +260,7 @@ Secrets are decrypted from the vault into this map in memory only.
 ### State machine
 `idle → preflight → starting → running → degraded → stopping → (idle | crashed)`
 - **preflight:** assert port 8888 free (net probe; if busy, surface the owning-process
-  hint — mirrors the engine's own EADDRINUSE message and the `runtime-topology` memory),
+  hint - mirrors the engine's own EADDRINUSE message and the `runtime-topology` memory),
   FFmpeg present, VB-Cable present, credentials in vault.
 - **starting → running:** consider the engine "running" when stdout emits the Discord
   `client.login` ready marker (`[Bootstrap]`/ready log) **and** the auth server
@@ -305,13 +305,13 @@ main → renderer (events):
   engine:log              (redacted line batches)
   prereqs:update          (live prereq changes)
 ```
-No secret values cross IPC back to the renderer — only booleans/masked status.
+No secret values cross IPC back to the renderer - only booleans/masked status.
 
 ## 6. Landing page (Vercel)
 
 - Hero: name, tagline, primary CTA "Download for Windows" (GitHub Releases .exe),
   secondary "Watch the 60s demo".
-- "greenroom shut down — here's the self-hosted replacement" framing.
+- "greenroom shut down - here's the self-hosted replacement" framing.
 - How it works (3 steps), feature grid, embedded demo MP4 (reuses onboarding render),
   FAQ (Premium required? Is my token safe? Why local? Mac/Linux?), download + footer.
 - Stack: Next.js + Tailwind + shadcn/ui, shares `packages/ui` tokens with desktop.
@@ -330,10 +330,10 @@ the desktop wizard and the landing page.
   child's env at spawn. No plaintext `.env` written by the app.
 - Token/secret values are redacted in the log view and never persisted to log files.
 - The local OAuth server binds `127.0.0.1:8888`. (Note: the WSL mirrored-networking
-  EADDRINUSE issue is dev-only; production runs on native Windows — see memory
+  EADDRINUSE issue is dev-only; production runs on native Windows - see memory
   `runtime-topology`.)
 - Installer is NSIS via electron-builder; code-signing certificate is a follow-up
-  (unsigned builds trigger SmartScreen — documented in FAQ until signed).
+  (unsigned builds trigger SmartScreen - documented in FAQ until signed).
 
 ## 9. Delivery phases
 
@@ -348,14 +348,14 @@ the desktop wizard and the landing page.
 - **P4** Landing page on Vercel, wired to GitHub Releases.
 - **P5** Packaging: electron-builder NSIS installer, auto-update channel, release CI.
 
-## GSTACK REVIEW REPORT (/autoplan — dual voice: Claude + Codex)
+## GSTACK REVIEW REPORT (/autoplan - dual voice: Claude + Codex)
 
 Consolidated dual-voice pass (this model + Codex CLI 0.135.0, read-only over the repo).
 Cross-phase theme flagged independently in CEO + Eng + DX: **the plan builds the
 company (TS monorepo, landing, Remotion, packaging) before proving first-run success
 on Windows.** The real risk is audio + OAuth + installer trust, not types or brand.
 
-### Auto-decided (consensus CONFIRMED — folded into the plan)
+### Auto-decided (consensus CONFIRMED - folded into the plan)
 1. **Engine emits structured JSON health events** (`auth_server_listening`,
    `discord_ready`, `ffmpeg_ready`, `voice_ready`, `spotify_auth_saved`) instead of the
    supervisor parsing human log strings with ANSI/emoji. (Eng, P5 explicit.)
@@ -376,18 +376,18 @@ on Windows.** The real risk is audio + OAuth + installer trust, not types or bra
    capture active, audio level, last error). Today failures vanish in auto-deleting
    Discord replies ([bot.js](../bot.js#L107)). (Design.)
 8. **Diagnostic export bundle** (OS, device list, FFmpeg path/version, port owner, Discord
-   + Spotify validation, capture amplitude, health events) — build it early; support
+   + Spotify validation, capture amplitude, health events) - build it early; support
    surface spans Windows audio, Discord, Spotify, Electron, FFmpeg, drivers. (DX.)
 9. **Fix Discord intents.** Message-mention NLU reads `message.content` ([bot.js](../bot.js#L404))
-   but `MessageContent` intent is not declared ([bot.js](../bot.js#L16)) — latent broken
+   but `MessageContent` intent is not declared ([bot.js](../bot.js#L16)) - latent broken
    feature. Declare it (and validate it in the wizard) or make message-NLU optional.
 10. **Default to guild slash-command registration** (instant) over global (≤1h) for TTHW.
 11. **Rename "fully bundled" → "assisted setup."** VB-Cable needs elevation+reboot;
     installer is unsigned (SmartScreen). Don't over-promise. (DX, critical framing.)
-12. **`AUDIO_DEVICE` needs a fallback** — localized Windows installs may not expose the
+12. **`AUDIO_DEVICE` needs a fallback** - localized Windows installs may not expose the
     exact string `CABLE Output (VB-Audio Virtual Cable)`; enumerate + fuzzy-match.
 
-### Decisions for the user (User Challenges + taste) — see approval gate
+### Decisions for the user (User Challenges + taste) - see approval gate
 - **UC1 Audience premise:** both models say the required dev-portal work (two developer
   apps, tokens, privileged intents, invite URL, exact redirect URI) is not turnkey for
   non-technical users; either target technical users for the MVP or the product needs a
@@ -402,17 +402,17 @@ on Windows.** The real risk is audio + OAuth + installer trust, not types or bra
   end-to-end success step (start engine → Spotify OAuth → join a test voice channel →
   capture → confirm non-silent audio). Recommend the end-to-end step.
 - **TD2 (auto, taste):** keep the pnpm workspace (4 real packages, already scaffolded)
-  rather than collapsing to a single app — minor disagreement with Codex; kept for DRY.
+  rather than collapsing to a single app - minor disagreement with Codex; kept for DRY.
 
 ### Gate outcome (APPROVED 2026-06-02)
 User decided: **UC1 → non-technical audience** (original goal kept; invest hardest in
 onboarding). **UC2 → migrate engine to strict TS now** (original plan kept). **UC3 →
 build everything now incl. Vercel landing + Remotion** (original plan kept). **TD1 →
 end-to-end success step adopted** (wizard proves "Discord heard your Spotify" before
-finishing — added as wizard Step 8). All 12 auto-decided improvements stand. No scope cut.
+finishing - added as wizard Step 8). All 12 auto-decided improvements stand. No scope cut.
 
 ## 10. Open items / follow-ups
 
 - Code-signing certificate (removes SmartScreen warning).
 - macOS/Linux support (out of scope now; engine already has a Linux audio path).
-- Auto-update (electron-updater) — defer to P5.
+- Auto-update (electron-updater) - defer to P5.

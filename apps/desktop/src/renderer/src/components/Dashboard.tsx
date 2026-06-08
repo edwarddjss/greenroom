@@ -3,7 +3,7 @@ import type { EngineSnapshot, EngineState, LogLine } from '@greenroom/shared';
 import { EMPTY_PREREQS } from '@greenroom/shared';
 import { api } from '../lib/api';
 import { Button, Card, Code, Modal, SectionHeader } from './ui';
-import { Emoji, type EmojiName } from './Emoji';
+import { Icon, type IconName } from './Icon';
 import { SettingsModal } from './SettingsModal';
 import { MusicVisualizer } from './MusicVisualizer';
 import { NowPlaying } from './NowPlaying';
@@ -11,8 +11,8 @@ import { useLoopbackLevel } from '../lib/useLoopbackLevel';
 
 type Tone = 'ok' | 'warn' | 'bad' | 'idle';
 
-/** OpenMoji glyph per status tone, used for the quiet typographic status treatment. */
-const TONE_EMOJI: Record<Exclude<Tone, 'idle'>, EmojiName> = {
+/** Plump glyph per status tone, used for the quiet typographic status treatment. */
+const TONE_ICON: Record<Exclude<Tone, 'idle'>, IconName> = {
   ok: 'check',
   warn: 'warning',
   bad: 'stopsign',
@@ -25,8 +25,8 @@ const TONE_TEXT: Record<Tone, string> = {
   idle: 'text-muted',
 };
 
-/** Single source for the command card — mirrors engine/src/register-commands.ts. */
-const COMMANDS: { emoji: EmojiName; command: string; detail: string }[] = [
+/** Single source for the command card - mirrors engine/src/register-commands.ts. */
+const COMMANDS: { emoji: IconName; command: string; detail: string }[] = [
   { emoji: 'key', command: '/login', detail: 'Link your Spotify account (once).' },
   { emoji: 'play', command: '/play', detail: 'Stream your Spotify session into voice.' },
   { emoji: 'notes', command: '/queue', detail: 'Queue a song, playlist, or Spotify link.' },
@@ -197,7 +197,7 @@ export function Dashboard(): JSX.Element {
   const vbCableProblem = snapshot.prereqs.vbcable.status !== 'ok' && snapshot.prereqs.vbcable.status !== 'unknown';
   const needsSetup = !snapshot.spotifyLinked;
   const homeTone: Tone = snapshot.lastError ? 'bad' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
-  const homeEmoji: EmojiName = snapshot.lastError
+  const homeIcon: IconName = snapshot.lastError
     ? 'stopsign'
     : homeTone === 'ok'
       ? snapshot.captureActive ? 'note' : 'check'
@@ -227,28 +227,28 @@ export function Dashboard(): JSX.Element {
       <div className="flex min-h-full flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {stateInfo.tone !== 'idle' && <Emoji name={TONE_EMOJI[stateInfo.tone]} size={16} />}
+          {stateInfo.tone !== 'idle' && <Icon name={TONE_ICON[stateInfo.tone]} size={16} className={TONE_TEXT[stateInfo.tone]} />}
           <span className={`text-xs font-semibold uppercase tracking-[0.14em] ${TONE_TEXT[stateInfo.tone]}`}>
             {stateInfo.label}
           </span>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" disabled={!inviteUrl} onClick={() => inviteUrl && window.open(inviteUrl, '_blank')}>
-            <Emoji name="wave" size={16} />
+            <Icon name="wave" size={16} />
             Invite bot
           </Button>
           <Button variant="ghost" onClick={() => setSettingsOpen(true)}>
-            <Emoji name="gear" size={16} />
+            <Icon name="gear" size={16} />
             Settings
           </Button>
           {running ? (
             <Button variant="danger" onClick={() => void api.engineStop().then(applySnapshot)}>
-              <Emoji name="stop" size={15} />
+              <Icon name="stop" size={15} />
               Stop
             </Button>
           ) : (
             <Button onClick={() => void api.engineStart().then(applySnapshot)}>
-              <Emoji name="rocket" size={16} />
+              <Icon name="rocket" size={16} />
               Start bot
             </Button>
           )}
@@ -268,10 +268,10 @@ export function Dashboard(): JSX.Element {
         <section className="grid min-h-0 content-start gap-4">
           <Card className="space-y-5 shadow-highlight">
             <div className="flex items-start gap-3">
-              <Emoji name={homeEmoji} size={30} className="mt-0.5 shrink-0" />
+              <Icon name={homeIcon} size={30} className={`mt-0.5 shrink-0 ${TONE_TEXT[homeTone]}`} />
               <div className="min-w-0">
                 <h1 className="text-base font-semibold tracking-tight">{homeTitle}</h1>
-                <p className="mt-1 text-[13px] leading-relaxed text-muted">{nextStep}</p>
+                <p className="mt-1 break-words text-[13px] leading-relaxed text-muted">{nextStep}</p>
               </div>
             </div>
 
@@ -291,14 +291,14 @@ export function Dashboard(): JSX.Element {
           </Card>
 
           <Card className="space-y-3">
-            <SectionHeader label="Use in Discord" icon={<Emoji name="chat" size={16} />} />
+            <SectionHeader label="Use in Discord" icon={<Icon name="chat" size={16} />} />
             <div className="space-y-1 text-sm">
               {COMMANDS.map((c) => (
                 <CommandRow key={c.command} emoji={c.emoji} command={c.command} detail={c.detail} />
               ))}
             </div>
             <p className="border-t border-line/60 pt-2.5 text-xs leading-relaxed text-muted">
-              Or just @mention the bot in chat — e.g. <span className="text-text/80">“@greenroom play some lofi”</span>.
+              Or just @mention the bot in chat, like <span className="text-text/80">"@greenroom play some lofi"</span>.
             </p>
           </Card>
         </section>
@@ -307,7 +307,7 @@ export function Dashboard(): JSX.Element {
           <SectionHeader
             label="Recent activity"
             detail="What Greenroom has done this session."
-            icon={<Emoji name="sparkles" size={16} />}
+            icon={<Icon name="sparkles" size={16} />}
             className="mb-3"
           />
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
@@ -326,13 +326,13 @@ export function Dashboard(): JSX.Element {
               activity.map((item) => {
                 return (
                 <div key={item.key} className="mb-2 flex gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
-                  <Emoji name={item.tone === 'idle' ? 'note' : TONE_EMOJI[item.tone]} size={15} className="mt-0.5 shrink-0" />
+                  <Icon name={item.tone === 'idle' ? 'note' : TONE_ICON[item.tone]} size={15} className={`mt-0.5 shrink-0 ${TONE_TEXT[item.tone]}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-medium">{item.title}</span>
-                      <span className="text-xs text-muted">{new Date(item.ts).toLocaleTimeString()}</span>
+                      <span className="min-w-0 break-words font-medium">{item.title}</span>
+                      <span className="shrink-0 text-xs text-muted">{new Date(item.ts).toLocaleTimeString()}</span>
                     </div>
-                    {item.detail && <div className="mt-0.5 truncate text-xs text-muted">{item.detail}</div>}
+                    {item.detail && <div className="mt-0.5 break-words text-xs text-muted">{item.detail}</div>}
                   </div>
                 </div>
                 );
@@ -387,10 +387,10 @@ function StatusRow({ tone, label, value }: { tone: Tone; label: string; value: s
   );
 }
 
-function CommandRow({ emoji, command, detail }: { emoji: EmojiName; command: string; detail: string }): JSX.Element {
+function CommandRow({ emoji, command, detail }: { emoji: IconName; command: string; detail: string }): JSX.Element {
   return (
     <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]">
-      <Emoji name={emoji} size={18} className="shrink-0" />
+      <Icon name={emoji} size={18} className="shrink-0 text-accent" />
       <Code className="shrink-0">{command}</Code>
       <span className="min-w-0 truncate text-xs text-muted">{detail}</span>
     </div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { Vibrant } from 'node-vibrant/browser';
 import type { NowPlaying as NowPlayingData } from '@greenroom/shared';
-import { Emoji } from './Emoji';
+import { Icon } from './Icon';
 import { MusicVisualizer } from './MusicVisualizer';
 
 interface NowPlayingProps {
@@ -15,7 +15,7 @@ interface NowPlayingProps {
 const DEFAULT_ACCENT = '#1FA877';
 
 /**
- * Streaming hero. Shows the host's real album art (via the existing Spotify login —
+ * Streaming hero. Shows the host's real album art (via the existing Spotify login -
  * no new keys), themes its glow + the visualizer to the cover's dominant colour,
  * and runs a progress bar interpolated locally between the engine's 15s polls.
  */
@@ -51,17 +51,17 @@ export function NowPlaying({ nowPlaying, guildName, channelName, levelRef }: Now
         ) : (
           <span
             className="relative grid h-20 w-20 shrink-0 place-items-center rounded-xl border bg-black/30"
-            style={{ borderColor: `${accent}55` }}
+            style={{ borderColor: `${accent}55`, color: accent }}
           >
-            <Emoji name="note" size={30} />
+            <Icon name="note" size={30} />
           </span>
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: accent }}>
-            <Emoji name="radio" size={14} />
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ backgroundColor: accent }} />
-            Live · {where}
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: accent }}>
+            <Icon name="radio" size={14} />
+            <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full" style={{ backgroundColor: accent }} />
+            <span className="min-w-0 truncate">Live · {where}</span>
           </div>
           {track ? (
             <>

@@ -26,7 +26,7 @@ export async function validateDiscord(token: string, clientId: string): Promise<
     return result;
   } catch (err) {
     const aborted = err instanceof Error && err.name === 'AbortError';
-    return { ok: false, error: aborted ? 'Timed out reaching Discord.' : 'Could not reach Discord — check your connection.' };
+    return { ok: false, error: aborted ? 'Timed out reaching Discord.' : 'Could not reach Discord - check your connection.' };
   } finally {
     clearTimeout(timer);
   }
@@ -51,7 +51,7 @@ export async function validateSpotify(clientId: string, clientSecret: string): P
     return { ok: false, error: `Spotify returned ${res.status}.` };
   } catch (err) {
     const aborted = err instanceof Error && err.name === 'AbortError';
-    return { ok: false, error: aborted ? 'Timed out reaching Spotify.' : 'Could not reach Spotify — check your connection.' };
+    return { ok: false, error: aborted ? 'Timed out reaching Spotify.' : 'Could not reach Spotify - check your connection.' };
   } finally {
     clearTimeout(timer);
   }

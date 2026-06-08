@@ -101,7 +101,7 @@ export interface NowPlaying {
   /** Playback position + length so the renderer can interpolate a smooth progress bar between polls. */
   progressMs?: number;
   durationMs?: number;
-  /** Epoch ms when this snapshot was taken — anchor for client-side progress interpolation. */
+  /** Epoch ms when this snapshot was taken - anchor for client-side progress interpolation. */
   sampledAt: number;
 }
 

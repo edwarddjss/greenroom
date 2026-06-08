@@ -2,7 +2,7 @@
   "name": "greenroom",
   "version": "0.1.0",
   "private": true,
-  "description": "greenroom — self-hosted Spotify-to-Discord streaming bot with a Windows desktop client",
+  "description": "greenroom - self-hosted Spotify-to-Discord streaming bot with a Windows desktop client",
   "type": "module",
   "engines": {
     "node": ">=20"

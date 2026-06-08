@@ -4,7 +4,7 @@ import { getStoreKey } from './vault';
 
 /**
  * Build the env for a forked engine/register child. We MUST inherit the parent
- * env (PATH, and on Windows SystemRoot/SystemDrive — without them getaddrinfo
+ * env (PATH, and on Windows SystemRoot/SystemDrive - without them getaddrinfo
  * fails with EAI_FAIL) and then layer our injected credentials/config on top.
  * ELECTRON_RUN_AS_NODE is stripped so the child behaves as plain Node.
  */

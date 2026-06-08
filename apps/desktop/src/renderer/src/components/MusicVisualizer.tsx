@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 
 interface MusicVisualizerProps {
-  /** Live capture amplitude (0–1). When omitted, the bars idle on organic motion. */
+  /** Live capture amplitude (0-1). When omitted, the bars idle on organic motion. */
   level?: number | undefined;
-  /** Ref sampled every frame (preferred over `level` — no re-renders). */
+  /** Ref sampled every frame (preferred over `level` - no re-renders). */
   levelRef?: MutableRefObject<number> | undefined;
   /** Streaming vs. ambient idle. Idle is calmer and dimmer. */
   active?: boolean;
@@ -27,7 +27,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 
 /**
  * Canvas equalizer. Bars are driven by layered sines (organic, music-like motion)
- * and scaled by the real `level` signal when present. No randomness — random
+ * and scaled by the real `level` signal when present. No randomness - random
  * jitter is the tell of a fake visualizer; coherent waves read as audio.
  */
 export function MusicVisualizer({
