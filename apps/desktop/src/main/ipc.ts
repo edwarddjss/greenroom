@@ -22,6 +22,7 @@ import { updaterManager } from './updater';
 
 type WinGetter = () => BrowserWindow | null;
 const COMMAND_REGISTRATION_TIMEOUT_MS = 30_000;
+const SUPPORT_EMAIL = 'edwardlongboat@gmail.com';
 
 function commandRegistrationError(output: string, code: number | undefined): string {
   if (/\b401\b|unauthorized|invalid token/i.test(output)) {
@@ -104,31 +105,36 @@ async function createDiagnosticsReport(): Promise<Record<string, unknown>> {
 async function openSupportIssue(): Promise<{ ok: boolean; error?: string }> {
   const report = JSON.stringify(await createDiagnosticsReport(), null, 2);
   clipboard.writeText(report);
-  const bodyWithoutReport = [
-    'What happened?',
-    '',
-    '',
-    'What did you expect?',
-    '',
-    '',
-    'Support report',
-    '',
-    'The report was copied to your clipboard. Paste it here.',
-  ].join('\n');
   const bodyWithReport = [
-    bodyWithoutReport,
+    'Hi, I need help with Greenroom.',
     '',
-    '```json',
+    'What happened:',
+    '',
+    '',
+    'What I expected:',
+    '',
+    '',
+    'App report:',
     report,
-    '```',
   ].join('\n');
-  const issueUrl = (body: string): string =>
-    `https://github.com/edwarddjss/greenroom/issues/new?${new URLSearchParams({
-      title: 'Support request',
+  const bodyWithoutReport = [
+    'Hi, I need help with Greenroom.',
+    '',
+    'What happened:',
+    '',
+    '',
+    'What I expected:',
+    '',
+    '',
+    'The app report was copied to my clipboard.',
+  ].join('\n');
+  const emailUrl = (body: string): string =>
+    `mailto:${SUPPORT_EMAIL}?${new URLSearchParams({
+      subject: 'Greenroom support request',
       body,
     }).toString()}`;
-  const fullUrl = issueUrl(bodyWithReport);
-  const url = fullUrl.length < 7000 ? fullUrl : issueUrl(bodyWithoutReport);
+  const fullUrl = emailUrl(bodyWithReport);
+  const url = fullUrl.length < 7000 ? fullUrl : emailUrl(bodyWithoutReport);
   await shell.openExternal(url);
   return { ok: true };
 }

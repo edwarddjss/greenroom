@@ -21,6 +21,9 @@ import LinkChain from '~icons/streamline-plump/link-chain-solid';
 import Support from '~icons/streamline-plump/customer-support-3-solid';
 import Clipboard from '~icons/streamline-plump/empty-clipboard-solid';
 import Flash from '~icons/streamline-plump/flash-1-solid';
+import Eye from '~icons/streamline-plump/eye-optic-solid';
+import EyeOff from '~icons/streamline-plump/invisible-1-solid';
+import Mail from '~icons/streamline-plump/mail-send-email-message-solid';
 
 type IconComponent = FC<SVGProps<SVGSVGElement>>;
 
@@ -46,6 +49,9 @@ const ICONS = {
   lifebuoy: Support,
   clipboard: Clipboard,
   sparkles: Flash,
+  eye: Eye,
+  eyeOff: EyeOff,
+  mail: Mail,
 } satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof ICONS;

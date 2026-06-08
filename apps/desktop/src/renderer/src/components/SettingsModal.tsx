@@ -28,8 +28,10 @@ export function SettingsModal({
   const [credsSummary, setCredsSummary] = useState<string>('Loading...');
   const [credsStatus, setCredsStatus] = useState<CredsStatus | null>(null);
   const [revealedCreds, setRevealedCreds] = useState<Partial<EngineCredentials> | null>(null);
+  const [revealedFields, setRevealedFields] = useState<Partial<Record<keyof EngineCredentials, boolean>>>({});
   const [replacingDiscord, setReplacingDiscord] = useState(false);
   const [replacingSpotify, setReplacingSpotify] = useState(false);
+  const [supportMessage, setSupportMessage] = useState<string | null>(null);
   const [savedInviteUrl, setSavedInviteUrl] = useState<string | null>(null);
   const [installingCable, setInstallingCable] = useState(false);
   const [cableInstallResult, setCableInstallResult] = useState<VbCableInstallResult | null>(null);
@@ -61,6 +63,7 @@ export function SettingsModal({
       setDiscordToken('');
       setDiscordClientId('');
       setRevealedCreds(null);
+      setRevealedFields({});
       setReplacingDiscord(false);
       showToast('ok', 'Discord credentials saved.');
     } else {
@@ -80,6 +83,7 @@ export function SettingsModal({
       setSpotifyClientId('');
       setSpotifyClientSecret('');
       setRevealedCreds(null);
+      setRevealedFields({});
       setReplacingSpotify(false);
       showToast('ok', 'Spotify credentials saved.');
     } else {
@@ -130,13 +134,13 @@ export function SettingsModal({
     showToast('ok', `${label} copied.`);
   };
 
-  const revealCreds = async (): Promise<void> => {
-    setRevealedCreds(await api.credsReveal());
-  };
-
-  const toggleRevealedCreds = (): void => {
-    if (revealedCreds) setRevealedCreds(null);
-    else void revealCreds();
+  const toggleCredentialField = async (field: keyof EngineCredentials): Promise<void> => {
+    if (revealedFields[field]) {
+      setRevealedFields((prev) => ({ ...prev, [field]: false }));
+      return;
+    }
+    if (!revealedCreds) setRevealedCreds(await api.credsReveal());
+    setRevealedFields((prev) => ({ ...prev, [field]: true }));
   };
 
   const showToast = (tone: 'ok' | 'bad', message: string): void => {
@@ -145,21 +149,16 @@ export function SettingsModal({
   };
 
   const vbCableNeedsAttention = prereqs.vbcable.status !== 'ok' && prereqs.vbcable.status !== 'unknown';
-  const activeRedirectUri = tunnel.callbackUrl ?? 'Get a redirect to add in Spotify.';
+  const activeRedirectUri = tunnel.callbackUrl ?? 'No redirect yet.';
   const discordSaved = credsStatus?.hasDiscord === true;
   const spotifySaved = credsStatus?.hasSpotify === true;
   const showDiscordFields = !discordSaved || replacingDiscord;
   const showSpotifyFields = !spotifySaved || replacingSpotify;
 
-  const exportDiagnostics = async (): Promise<void> => {
-    const result = await api.diagnosticsExport();
-    const opened = await api.diagnosticsOpen(result.path);
-    showToast(opened.ok ? 'ok' : 'bad', opened.ok ? 'Diagnostics report opened.' : (opened.error ?? 'Diagnostics report was created, but could not be opened.'));
-  };
-
   const openSupportIssue = async (): Promise<void> => {
+    setSupportMessage(null);
     const result = await api.diagnosticsIssue();
-    showToast(result.ok ? 'ok' : 'bad', result.ok ? 'Support request opened. Report copied to clipboard.' : (result.error ?? 'Could not open support.'));
+    setSupportMessage(result.ok ? 'Email draft opened with the report filled in.' : (result.error ?? 'Could not open support.'));
   };
 
   return (
@@ -191,7 +190,7 @@ export function SettingsModal({
           <section className="space-y-3">
             <SectionHeader
               label="Spotify redirect"
-              detail="Greenroom starts this automatically with the bot. Refresh only when Spotify needs a new redirect URI."
+              detail="Used for Spotify login. Greenroom starts it automatically with the bot."
               action={
                 <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" size="sm" disabled={tunnelBusy} onClick={() => void startTunnel()}>
@@ -215,7 +214,6 @@ export function SettingsModal({
                   {tunnel.url ? ` Tunnel URL: ${tunnel.url}` : ''}
                 </p>
               )}
-              <p className="text-xs text-muted">Add this Redirect URI in the Spotify Developer Dashboard. If the bot is already running, Greenroom restarts it after the redirect changes.</p>
             </div>
           </section>
 
@@ -229,11 +227,15 @@ export function SettingsModal({
               />
               {discordSaved && !replacingDiscord ? (
                 <div className="space-y-2">
-                  <CredentialValue label="Bot token" value={revealedCreds?.discordToken} onReveal={toggleRevealedCreds} />
+                  <CredentialValue
+                    label="Bot token"
+                    value={revealedFields.discordToken ? revealedCreds?.discordToken : undefined}
+                    onReveal={() => void toggleCredentialField('discordToken')}
+                  />
                   <CredentialValue
                     label="Application ID"
-                    value={revealedCreds?.discordClientId}
-                    onReveal={toggleRevealedCreds}
+                    value={revealedFields.discordClientId ? revealedCreds?.discordClientId : undefined}
+                    onReveal={() => void toggleCredentialField('discordClientId')}
                   />
                 </div>
               ) : (
@@ -266,11 +268,15 @@ export function SettingsModal({
               <Code className={`block break-all whitespace-normal ${tunnel.callbackUrl ? '' : 'text-muted'}`}>{activeRedirectUri}</Code>
               {spotifySaved && !replacingSpotify ? (
                 <div className="space-y-2">
-                  <CredentialValue label="Client ID" value={revealedCreds?.spotifyClientId} onReveal={toggleRevealedCreds} />
+                  <CredentialValue
+                    label="Client ID"
+                    value={revealedFields.spotifyClientId ? revealedCreds?.spotifyClientId : undefined}
+                    onReveal={() => void toggleCredentialField('spotifyClientId')}
+                  />
                   <CredentialValue
                     label="Client secret"
-                    value={revealedCreds?.spotifyClientSecret}
-                    onReveal={toggleRevealedCreds}
+                    value={revealedFields.spotifyClientSecret ? revealedCreds?.spotifyClientSecret : undefined}
+                    onReveal={() => void toggleCredentialField('spotifyClientSecret')}
                   />
                 </div>
               ) : (
@@ -304,19 +310,19 @@ export function SettingsModal({
           <section className="space-y-3 border-t border-line pt-5">
             <SectionHeader
               label="Support"
-              detail="Open a GitHub issue with a safe app report attached."
+              detail="Open an email draft with a safe app report filled in."
               icon={<Icon name="lifebuoy" size={16} />}
             />
             <p className="text-xs leading-relaxed text-muted">
-              The report includes app and system status. It never includes Discord tokens, Spotify secrets, or linked-account tokens.
+              It never includes Discord tokens, Spotify secrets, or linked-account tokens.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => void openSupportIssue()}>
-                <Icon name="link" size={14} />
-                Open support request
+                <Icon name="mail" size={14} />
+                Contact support
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Save report</Button>
             </div>
+            {supportMessage && <p className="text-xs text-muted">{supportMessage}</p>}
           </section>
       </div>
 
@@ -340,10 +346,18 @@ function CredentialValue({
 }): JSX.Element {
   const visible = Boolean(value);
   return (
-    <div className="grid gap-2 md:grid-cols-[110px_minmax(0,1fr)_auto] md:items-center">
+    <div className="grid gap-2 md:grid-cols-[96px_minmax(0,1fr)_auto] md:items-center">
       <span className="text-xs font-medium text-muted">{label}</span>
       <Code className="block min-w-0 truncate py-2">{visible ? value : '************'}</Code>
-      <Button variant="ghost" size="sm" onClick={onReveal}>{visible ? 'Hide' : 'Reveal'}</Button>
+      <button
+        type="button"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-muted transition-colors hover:bg-white/[0.09] hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        aria-label={visible ? `Hide ${label}` : `Reveal ${label}`}
+        title={visible ? `Hide ${label}` : `Reveal ${label}`}
+        onClick={onReveal}
+      >
+        <Icon name={visible ? 'eyeOff' : 'eye'} size={15} />
+      </button>
     </div>
   );
 }
