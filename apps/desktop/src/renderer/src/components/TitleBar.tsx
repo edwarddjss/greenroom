@@ -1,5 +1,7 @@
-import { Minus, Square, X } from 'lucide-react';
 import { api } from '../lib/api';
+
+// Minimal geometric window-control glyphs — kept deliberately non-emoji for clarity.
+const glyph = { strokeWidth: 1.2, fill: 'none', stroke: 'currentColor' } as const;
 
 export function TitleBar(): JSX.Element {
   const controlBaseClass =
@@ -16,10 +18,14 @@ export function TitleBar(): JSX.Element {
       <div className="app-no-drag flex h-full items-center">
         <div className="flex h-full border-l border-line">
           <button className={neutralControlClass} aria-label="Minimize" title="Minimize" onClick={() => void api.windowMinimize()}>
-            <Minus size={16} strokeWidth={2} aria-hidden="true" />
+            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <line x1="1.5" y1="5.5" x2="9.5" y2="5.5" {...glyph} />
+            </svg>
           </button>
           <button className={neutralControlClass} aria-label="Maximize" title="Maximize" onClick={() => void api.windowMaximize()}>
-            <Square size={13} strokeWidth={2} aria-hidden="true" />
+            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <rect x="1.5" y="1.5" width="8" height="8" rx="1" {...glyph} />
+            </svg>
           </button>
           <button
             className={closeControlClass}
@@ -27,7 +33,10 @@ export function TitleBar(): JSX.Element {
             title="Close"
             onClick={() => void api.windowClose()}
           >
-            <X size={16} strokeWidth={2} aria-hidden="true" />
+            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <line x1="1.8" y1="1.8" x2="9.2" y2="9.2" {...glyph} />
+              <line x1="9.2" y1="1.8" x2="1.8" y2="9.2" {...glyph} />
+            </svg>
           </button>
         </div>
       </div>

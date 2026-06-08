@@ -1,6 +1,6 @@
 {
   "name": "@greenroom/desktop",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "private": true,
   "description": "greenroom desktop client (Electron) for Windows",
   "main": "out/main/index.js",
@@ -66,7 +66,6 @@
     "@greenroom/engine": "workspace:*",
     "@greenroom/shared": "workspace:*",
     "electron-updater": "^6.3.9",
-    "lucide-react": "^1.17.0",
     "node-vibrant": "^4.0.4",
     "sql.js": "^1.14.1"
   },

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { Vibrant } from 'node-vibrant/browser';
-import { Music, Radio } from 'lucide-react';
 import type { NowPlaying as NowPlayingData } from '@greenroom/shared';
+import { Emoji } from './Emoji';
 import { MusicVisualizer } from './MusicVisualizer';
 
 interface NowPlayingProps {
@@ -53,13 +53,13 @@ export function NowPlaying({ nowPlaying, guildName, channelName, levelRef }: Now
             className="relative grid h-20 w-20 shrink-0 place-items-center rounded-xl border bg-black/30"
             style={{ borderColor: `${accent}55` }}
           >
-            <Music size={26} strokeWidth={2} style={{ color: accent }} aria-hidden="true" />
+            <Emoji name="note" size={30} />
           </span>
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: accent }}>
-            <Radio size={13} strokeWidth={2.4} aria-hidden="true" />
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: accent }}>
+            <Emoji name="radio" size={14} />
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ backgroundColor: accent }} />
             Live · {where}
           </div>

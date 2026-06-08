@@ -1,13 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EngineSnapshot, EngineState, LogLine } from '@greenroom/shared';
 import { EMPTY_PREREQS } from '@greenroom/shared';
-import { AlertTriangle, CheckCircle2, MessageCircle, Power, Settings, Square, UserPlus } from 'lucide-react';
 import { api } from '../lib/api';
-import { Button, Card, Code, Modal, SectionHeader, StatusDot } from './ui';
+import { Button, Card, Code, Modal, SectionHeader } from './ui';
+import { Emoji, type EmojiName } from './Emoji';
 import { SettingsModal } from './SettingsModal';
 import { MusicVisualizer } from './MusicVisualizer';
 import { NowPlaying } from './NowPlaying';
 import { useLoopbackLevel } from '../lib/useLoopbackLevel';
+
+type Tone = 'ok' | 'warn' | 'bad' | 'idle';
+
+/** OpenMoji glyph per status tone, used for the quiet typographic status treatment. */
+const TONE_EMOJI: Record<Exclude<Tone, 'idle'>, EmojiName> = {
+  ok: 'check',
+  warn: 'warning',
+  bad: 'stopsign',
+};
+
+const TONE_TEXT: Record<Tone, string> = {
+  ok: 'text-accent',
+  warn: 'text-warn',
+  bad: 'text-danger',
+  idle: 'text-muted',
+};
+
+/** Single source for the command card — mirrors engine/src/register-commands.ts. */
+const COMMANDS: { emoji: EmojiName; command: string; detail: string }[] = [
+  { emoji: 'key', command: '/login', detail: 'Link your Spotify account (once).' },
+  { emoji: 'play', command: '/play', detail: 'Stream your Spotify session into voice.' },
+  { emoji: 'notes', command: '/queue', detail: 'Queue a song, playlist, or Spotify link.' },
+  { emoji: 'broom', command: '/clearqueue', detail: 'Clear the pending Spotify queue.' },
+  { emoji: 'stop', command: '/stop', detail: 'Stop streaming and pause playback.' },
+  { emoji: 'knobs', command: '/effect', detail: 'Bass boost, speed up, or slow down.' },
+];
 
 const STATE_LABEL: Record<EngineState, { label: string; tone: 'ok' | 'warn' | 'bad' | 'idle' }> = {
   idle: { label: 'Stopped', tone: 'idle' },
@@ -170,7 +196,14 @@ export function Dashboard(): JSX.Element {
   const stateInfo = STATE_LABEL[snapshot.state];
   const vbCableProblem = snapshot.prereqs.vbcable.status !== 'ok' && snapshot.prereqs.vbcable.status !== 'unknown';
   const needsSetup = !snapshot.spotifyLinked;
-  const homeTone = snapshot.lastError ? 'bad' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
+  const homeTone: Tone = snapshot.lastError ? 'bad' : !running ? 'idle' : needsSetup ? 'warn' : 'ok';
+  const homeEmoji: EmojiName = snapshot.lastError
+    ? 'stopsign'
+    : homeTone === 'ok'
+      ? snapshot.captureActive ? 'note' : 'check'
+      : homeTone === 'warn'
+        ? 'warning'
+        : 'radio';
   const homeTitle = snapshot.lastError
     ? 'Something needs attention'
     : !running
@@ -193,29 +226,29 @@ export function Dashboard(): JSX.Element {
     <div className="mx-auto h-full max-w-5xl overflow-auto p-4 sm:p-6">
       <div className="flex min-h-full flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-2 rounded-full border border-line bg-white/[0.04] px-3 py-1 text-[13px] font-medium">
-            <StatusDot tone={stateInfo.tone} />
+        <div className="flex items-center gap-2">
+          {stateInfo.tone !== 'idle' && <Emoji name={TONE_EMOJI[stateInfo.tone]} size={16} />}
+          <span className={`text-xs font-semibold uppercase tracking-[0.14em] ${TONE_TEXT[stateInfo.tone]}`}>
             {stateInfo.label}
           </span>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" disabled={!inviteUrl} onClick={() => inviteUrl && window.open(inviteUrl, '_blank')}>
-            <UserPlus size={16} strokeWidth={2.1} aria-hidden="true" />
+            <Emoji name="wave" size={16} />
             Invite bot
           </Button>
           <Button variant="ghost" onClick={() => setSettingsOpen(true)}>
-            <Settings size={16} strokeWidth={2.1} aria-hidden="true" />
+            <Emoji name="gear" size={16} />
             Settings
           </Button>
           {running ? (
             <Button variant="danger" onClick={() => void api.engineStop().then(applySnapshot)}>
-              <Square size={15} strokeWidth={2.2} aria-hidden="true" />
+              <Emoji name="stop" size={15} />
               Stop
             </Button>
           ) : (
             <Button onClick={() => void api.engineStart().then(applySnapshot)}>
-              <Power size={16} strokeWidth={2.1} aria-hidden="true" />
+              <Emoji name="rocket" size={16} />
               Start bot
             </Button>
           )}
@@ -235,35 +268,14 @@ export function Dashboard(): JSX.Element {
         <section className="grid min-h-0 content-start gap-4">
           <Card className="space-y-5 shadow-highlight">
             <div className="flex items-start gap-3">
-              <div
-                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border ${
-                  snapshot.lastError
-                    ? 'border-danger/25 bg-danger/10'
-                    : homeTone === 'ok'
-                      ? 'border-accent/25 bg-accent/10'
-                      : homeTone === 'idle'
-                        ? 'border-line bg-white/[0.03]'
-                      : 'border-warn/25 bg-warn/10'
-                }`}
-              >
-                {snapshot.lastError ? (
-                  <AlertTriangle size={20} strokeWidth={2.1} className="text-danger" aria-hidden="true" />
-                ) : (
-                  <CheckCircle2
-                    size={20}
-                    strokeWidth={2.1}
-                    className={homeTone === 'ok' ? 'text-accent' : homeTone === 'idle' ? 'text-muted' : 'text-warn'}
-                    aria-hidden="true"
-                  />
-                )}
-              </div>
+              <Emoji name={homeEmoji} size={30} className="mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <h1 className="text-base font-semibold tracking-tight">{homeTitle}</h1>
                 <p className="mt-1 text-[13px] leading-relaxed text-muted">{nextStep}</p>
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="-my-1">
               <StatusRow tone={stateInfo.tone} label="Bot" value={running ? 'Online' : stateInfo.label} />
               <StatusRow
                 tone={!running ? 'idle' : snapshot.spotifyLinked ? 'ok' : 'warn'}
@@ -279,16 +291,15 @@ export function Dashboard(): JSX.Element {
           </Card>
 
           <Card className="space-y-3">
-            <SectionHeader
-              label="Use in Discord"
-              icon={<MessageCircle size={15} strokeWidth={2.1} aria-hidden="true" />}
-            />
-            <div className="space-y-2 text-sm">
-              <CommandRow command="/login" detail="Link Spotify once." />
-              <CommandRow command="/play" detail="Play a song, playlist, or Spotify link." />
-              <CommandRow command="/queue" detail="Add music without stopping the current track." />
-              <CommandRow command="/clearqueue" detail="Empty a long playlist queue." />
+            <SectionHeader label="Use in Discord" icon={<Emoji name="chat" size={16} />} />
+            <div className="space-y-1 text-sm">
+              {COMMANDS.map((c) => (
+                <CommandRow key={c.command} emoji={c.emoji} command={c.command} detail={c.detail} />
+              ))}
             </div>
+            <p className="border-t border-line/60 pt-2.5 text-xs leading-relaxed text-muted">
+              Or just @mention the bot in chat — e.g. <span className="text-text/80">“@greenroom play some lofi”</span>.
+            </p>
           </Card>
         </section>
 
@@ -296,6 +307,7 @@ export function Dashboard(): JSX.Element {
           <SectionHeader
             label="Recent activity"
             detail="What Greenroom has done this session."
+            icon={<Emoji name="sparkles" size={16} />}
             className="mb-3"
           />
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-sunken p-3 text-sm">
@@ -313,10 +325,8 @@ export function Dashboard(): JSX.Element {
             ) : (
               activity.map((item) => {
                 return (
-                <div key={item.key} className="mb-2 flex gap-3 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
-                  <div className="pt-1">
-                    <StatusDot tone={item.tone} />
-                  </div>
+                <div key={item.key} className="mb-2 flex gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2 last:mb-0">
+                  <Emoji name={item.tone === 'idle' ? 'note' : TONE_EMOJI[item.tone]} size={15} className="mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-medium">{item.title}</span>
@@ -368,23 +378,21 @@ export function Dashboard(): JSX.Element {
   );
 }
 
-function StatusRow({ tone, label, value }: { tone: 'ok' | 'warn' | 'bad' | 'idle'; label: string; value: string }): JSX.Element {
+function StatusRow({ tone, label, value }: { tone: Tone; label: string; value: string }): JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white/[0.02] px-3 py-2">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <StatusDot tone={tone} />
-        <span className="truncate text-[13px] font-medium">{label}</span>
-      </div>
-      <span className="shrink-0 text-xs text-muted">{value}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-line/60 py-2 last:border-0">
+      <span className="truncate text-[13px] text-muted">{label}</span>
+      <span className={`shrink-0 text-[13px] font-medium ${TONE_TEXT[tone]}`}>{value}</span>
     </div>
   );
 }
 
-function CommandRow({ command, detail }: { command: string; detail: string }): JSX.Element {
+function CommandRow({ emoji, command, detail }: { emoji: EmojiName; command: string; detail: string }): JSX.Element {
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-2">
+    <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]">
+      <Emoji name={emoji} size={18} className="shrink-0" />
       <Code className="shrink-0">{command}</Code>
-      <span className="min-w-0 text-xs text-muted">{detail}</span>
+      <span className="min-w-0 truncate text-xs text-muted">{detail}</span>
     </div>
   );
 }

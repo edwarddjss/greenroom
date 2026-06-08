@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CredsStatus, DiscordValidation, PrereqReport, SpotifyValidation, TunnelStatus, VbCableInstallResult } from '@greenroom/shared';
 import { botInviteUrl } from '@greenroom/shared';
 import { api } from '../lib/api';
-import { ExternalLink, LifeBuoy } from 'lucide-react';
+import { Emoji } from './Emoji';
 import { Button, Code, Field, Modal, SectionHeader } from './ui';
 
 export function SettingsModal({
@@ -242,7 +242,7 @@ export function SettingsModal({
             <SectionHeader
               label="Get support"
               detail="Create a privacy-safe report when something is not working."
-              icon={<LifeBuoy size={15} strokeWidth={2.1} aria-hidden="true" />}
+              icon={<Emoji name="lifebuoy" size={16} />}
             />
             <p className="text-xs leading-relaxed text-muted">
               The report includes app and system status, but never your Discord token, Spotify secret, or linked-account tokens. Review it before attaching it to an issue.
@@ -250,7 +250,7 @@ export function SettingsModal({
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" size="sm" onClick={() => void exportDiagnostics()}>Create support report</Button>
               <Button variant="ghost" size="sm" onClick={() => window.open('https://github.com/edwarddjss/greenroom/issues/new', '_blank')}>
-                <ExternalLink size={14} strokeWidth={2.1} aria-hidden="true" />
+                <Emoji name="link" size={14} />
                 Report an issue
               </Button>
             </div>
