@@ -16,7 +16,7 @@ export function StatusBar(): JSX.Element {
       case 'downloaded':
         return `Restart to update${update.version ? ` · v${update.version}` : ''}`;
       case 'up-to-date':
-        return `No update${version ? ` · ${version}` : ''}`;
+        return `Up to date${version ? ` · ${version}` : ''}`;
       case 'error':
         return `Retry update check${version ? ` · ${version}` : ''}`;
       default:

@@ -335,8 +335,14 @@ namespace Greenroom {
             if (appKey == null) continue;
             string app = ReadRegistryString(appKey.GetValue(""));
             if (app == null || app.IndexOf("Spotify", StringComparison.OrdinalIgnoreCase) < 0) continue;
-            string fullId = ReadRegistryString(appKey.GetValue("000_000")) ?? ReadRegistryString(appKey.GetValue("001_000"));
-            string groupId = ReadRegistryString(appKey.GetValue("000_000_p")) ?? ReadRegistryString(appKey.GetValue("001_000_p"));
+            string fullId =
+              ReadRegistryString(appKey.GetValue("001_000")) ??
+              ReadRegistryString(appKey.GetValue("000_000")) ??
+              ReadRegistryString(appKey.GetValue("002_000"));
+            string groupId =
+              ReadRegistryString(appKey.GetValue("001_000_p")) ??
+              ReadRegistryString(appKey.GetValue("000_000_p")) ??
+              ReadRegistryString(appKey.GetValue("002_000_p"));
             if (!String.IsNullOrWhiteSpace(fullId)) return new DeviceInfo(fullId, groupId);
           }
         }
@@ -356,9 +362,11 @@ namespace Greenroom {
             if (app == null || app.IndexOf("Spotify", StringComparison.OrdinalIgnoreCase) < 0) continue;
             appKey.SetValue("000_000", device.FullId, RegistryValueKind.String);
             appKey.SetValue("001_000", device.FullId, RegistryValueKind.String);
+            appKey.SetValue("002_000", device.FullId, RegistryValueKind.String);
             if (!String.IsNullOrWhiteSpace(device.GroupId)) {
               appKey.SetValue("000_000_p", device.GroupId, RegistryValueKind.String);
               appKey.SetValue("001_000_p", device.GroupId, RegistryValueKind.String);
+              appKey.SetValue("002_000_p", device.GroupId, RegistryValueKind.String);
             }
             changed++;
           }
@@ -383,22 +391,33 @@ namespace Greenroom {
     }
 
     private static string GetPersistedEndpoint(int processId) {
+      string multimedia = GetPersistedEndpointForRole(processId, Role.Multimedia);
+      if (!String.IsNullOrWhiteSpace(multimedia)) return multimedia;
+      string console = GetPersistedEndpointForRole(processId, Role.Console);
+      if (!String.IsNullOrWhiteSpace(console)) return console;
+      return GetPersistedEndpointForRole(processId, Role.Communications);
+    }
+
+    private static string GetPersistedEndpointForRole(int processId, Role role) {
       bool current;
       object factory = GetFactory(out current);
       string deviceId = null;
       uint hr = current
-        ? ((IAudioPolicyConfigFactoryVariantFor21H2)factory).GetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)Role.Console, out deviceId)
-        : ((IAudioPolicyConfigFactoryVariantForDownlevel)factory).GetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)Role.Console, out deviceId);
+        ? ((IAudioPolicyConfigFactoryVariantFor21H2)factory).GetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)role, out deviceId)
+        : ((IAudioPolicyConfigFactoryVariantForDownlevel)factory).GetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)role, out deviceId);
       return hr == 0 ? deviceId : null;
     }
 
     private static bool SetPersistedEndpoint(int processId, string deviceId) {
       bool current;
       object factory = GetFactory(out current);
-      uint hr = current
-        ? ((IAudioPolicyConfigFactoryVariantFor21H2)factory).SetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)Role.Console, deviceId)
-        : ((IAudioPolicyConfigFactoryVariantForDownlevel)factory).SetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)Role.Console, deviceId);
-      Check(unchecked((int)hr), "SetPersistedDefaultAudioEndpoint");
+      Role[] roles = new Role[] { Role.Console, Role.Multimedia, Role.Communications };
+      foreach (Role role in roles) {
+        uint hr = current
+          ? ((IAudioPolicyConfigFactoryVariantFor21H2)factory).SetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)role, deviceId)
+          : ((IAudioPolicyConfigFactoryVariantForDownlevel)factory).SetPersistedDefaultAudioEndpoint(processId, (int)DataFlow.Render, (int)role, deviceId);
+        Check(unchecked((int)hr), "SetPersistedDefaultAudioEndpoint");
+      }
       return true;
     }
 

@@ -4,6 +4,7 @@ import { IPC_EVENT, type UpdateStatus } from '@greenroom/shared';
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const INITIAL_CHECK_DELAY_MS = 8_000;
+const UP_TO_DATE_VISIBLE_MS = 3_500;
 // A check should resolve quickly; if electron-updater never fires an event we
 // surface a timeout instead of leaving the button stuck on "Checking…".
 const CHECK_TIMEOUT_MS = 30_000;
@@ -32,6 +33,7 @@ class UpdaterManager {
   private initialized = false;
   private userInitiated = false;
   private checkTimer: NodeJS.Timeout | null = null;
+  private upToDateTimer: NodeJS.Timeout | null = null;
 
   initialize(getWin: () => BrowserWindow | null): void {
     if (this.initialized) return;
@@ -42,6 +44,7 @@ class UpdaterManager {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.on('checking-for-update', () => {
+      this.clearUpToDateTimer();
       this.armWatchdog();
       this.setStatus({ phase: 'checking' });
     });
@@ -52,7 +55,10 @@ class UpdaterManager {
     autoUpdater.on('update-not-available', () => {
       this.clearWatchdog();
       // Positive confirmation for a manual check; quiet for background checks.
-      this.setStatus({ phase: this.userInitiated ? 'up-to-date' : 'idle', lastCheckedAt: Date.now() });
+      const phase = this.userInitiated ? 'up-to-date' : 'idle';
+      const checkedAt = Date.now();
+      this.setStatus({ phase, lastCheckedAt: checkedAt });
+      if (phase === 'up-to-date') this.returnToIdleAfterUpToDate(checkedAt);
       this.userInitiated = false;
     });
     autoUpdater.on('download-progress', (progress) => {
@@ -131,6 +137,23 @@ class UpdaterManager {
       clearTimeout(this.checkTimer);
       this.checkTimer = null;
     }
+  }
+
+  private clearUpToDateTimer(): void {
+    if (this.upToDateTimer) {
+      clearTimeout(this.upToDateTimer);
+      this.upToDateTimer = null;
+    }
+  }
+
+  private returnToIdleAfterUpToDate(checkedAt: number): void {
+    this.clearUpToDateTimer();
+    this.upToDateTimer = setTimeout(() => {
+      if (this.status.phase === 'up-to-date' && this.status.lastCheckedAt === checkedAt) {
+        this.setStatus({ phase: 'idle', lastCheckedAt: checkedAt });
+      }
+      this.upToDateTimer = null;
+    }, UP_TO_DATE_VISIBLE_MS);
   }
 
   private prepareFreshManualCheck(): void {

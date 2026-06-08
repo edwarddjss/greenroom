@@ -13,7 +13,7 @@ import { HEALTH_MARKER } from '@greenroom/engine/health';
 import { engineEntry } from './paths';
 import { loadCreds } from './vault';
 import { buildEngineEnv } from './engine-env';
-import { restoreSpotifyOutputFromDesktop } from './audio-routing';
+import { restoreSpotifyOutputFromDesktop, routeSpotifyOutputFromDesktop } from './audio-routing';
 
 interface SupervisorCallbacks {
   onState: (snapshot: EngineSnapshot) => void;
@@ -75,7 +75,7 @@ export class Supervisor {
     return [...this.logRing];
   }
 
-  start(): EngineSnapshot {
+  async start(): Promise<EngineSnapshot> {
     if (this.child) return this.snapshot();
 
     const parsed = EngineCredentials.safeParse(loadCreds());
@@ -96,6 +96,7 @@ export class Supervisor {
     this.redactList = [creds.discordToken, creds.spotifyClientSecret].filter(Boolean);
 
     const env = buildEngineEnv(creds);
+    await routeSpotifyOutputFromDesktop().catch(() => undefined);
 
     const child = utilityProcess.fork(engineEntry(), [], { stdio: 'pipe', env });
     this.child = child;
@@ -169,7 +170,7 @@ export class Supervisor {
     }
     const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** this.restartAttempts);
     this.restartAttempts += 1;
-    this.backoffTimer = setTimeout(() => this.start(), delay);
+    this.backoffTimer = setTimeout(() => void this.start(), delay);
   }
 
   private maybeRunning(): void {
