@@ -1,10 +1,11 @@
+import type { AudioRouteResult } from '@greenroom/engine/windows-audio-router';
 import { restoreSpotifyOutput, routeSpotifyToCapture } from '@greenroom/engine/windows-audio-router';
 import { dataDir } from './paths';
 import { loadAudioSettings } from './vault';
 
 const DEFAULT_CAPTURE_DEVICE = 'CABLE Output (VB-Audio Virtual Cable)';
 
-export async function routeSpotifyOutputFromDesktop(): Promise<void> {
+export async function routeSpotifyOutputFromDesktop(): Promise<AudioRouteResult> {
   const audio = loadAudioSettings();
   const result = await routeSpotifyToCapture(audio.captureDevice || DEFAULT_CAPTURE_DEVICE, {
     dataDir: dataDir(),
@@ -15,9 +16,10 @@ export async function routeSpotifyOutputFromDesktop(): Promise<void> {
   } else {
     console.warn(`[AudioRouting] Could not route Spotify audio from desktop: ${result.message}`);
   }
+  return result;
 }
 
-export async function restoreSpotifyOutputFromDesktop(): Promise<void> {
+export async function restoreSpotifyOutputFromDesktop(): Promise<AudioRouteResult> {
   const audio = loadAudioSettings();
   const result = await restoreSpotifyOutput(audio.captureDevice || DEFAULT_CAPTURE_DEVICE, {
     dataDir: dataDir(),
@@ -28,4 +30,5 @@ export async function restoreSpotifyOutputFromDesktop(): Promise<void> {
   } else {
     console.warn(`[AudioRouting] Could not restore Spotify audio from desktop: ${result.message}`);
   }
+  return result;
 }

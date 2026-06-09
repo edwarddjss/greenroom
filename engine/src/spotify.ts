@@ -333,6 +333,35 @@ export class SpotifyController extends EventEmitter {
     }
   }
 
+  /**
+   * Resume playback on the desktop Spotify device after Windows per-app routing
+   * has changed. Spotify can keep an existing render session pinned to the old
+   * output until playback is restarted on that client, so transfer first, pause
+   * briefly, then play on the same device.
+   */
+  async resumeOnRoutedDevice(discordUserId: string, deviceId: string | null = null): Promise<PlayResult> {
+    if (deviceId) {
+      await this.transferPlayback(discordUserId, deviceId, true);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      try {
+        await this.pause(discordUserId, deviceId);
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      } catch (err) {
+        console.warn('[AudioRouting] Could not pause Spotify to rebind its output device:', (err as Error).message);
+      }
+      return this.play(discordUserId, deviceId);
+    }
+
+    const state = await this.getPlaybackState(discordUserId).catch(() => null);
+    if (state?.isPlaying) {
+      await this.pause(discordUserId).catch((err) => {
+        console.warn('[AudioRouting] Could not pause Spotify to rebind its output device:', (err as Error).message);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+    return this.play(discordUserId);
+  }
+
   async searchAndPlay(discordUserId: string, query: string): Promise<PlayResult> {
     const cleanQuery = normalizeSpotifySearchQuery(query);
     console.log(`[Spotify] Searching "${cleanQuery}" for ${discordUserId}...`);
@@ -527,8 +556,8 @@ export class SpotifyController extends EventEmitter {
     await this.request(discordUserId, `/me/player/next${deviceParam}`, 'POST');
   }
 
-  async transferPlayback(discordUserId: string, deviceId: string): Promise<void> {
-    await this.request(discordUserId, '/me/player', 'PUT', { device_ids: [deviceId], play: true });
+  async transferPlayback(discordUserId: string, deviceId: string, play = true): Promise<void> {
+    await this.request(discordUserId, '/me/player', 'PUT', { device_ids: [deviceId], play });
   }
 
   async getPlaybackState(discordUserId: string): Promise<PlaybackState> {

@@ -96,7 +96,14 @@ export class Supervisor {
     this.redactList = [creds.discordToken, creds.spotifyClientSecret].filter(Boolean);
 
     const env = buildEngineEnv(creds);
-    await routeSpotifyOutputFromDesktop().catch(() => undefined);
+    // Route Spotify onto VB-Cable before the engine starts. Surface failures so a
+    // non-technical user sees why Discord might be silent, rather than failing mutely.
+    const route = await routeSpotifyOutputFromDesktop().catch(
+      (err: unknown): { ok: boolean; message: string } => ({ ok: false, message: (err as Error)?.message ?? 'Unknown error.' }),
+    );
+    if (!route.ok) {
+      this.emitRoutingLog(`[AudioRouting] Could not route Spotify automatically: ${route.message}`);
+    }
 
     const child = utilityProcess.fork(engineEntry(), [], { stdio: 'pipe', env });
     this.child = child;
@@ -122,7 +129,12 @@ export class Supervisor {
     this.userStopped = true;
     this.clearTimers();
     this.transition('stopping');
-    await restoreSpotifyOutputFromDesktop().catch(() => undefined);
+    const restore = await restoreSpotifyOutputFromDesktop().catch(
+      (err: unknown): { ok: boolean; message: string } => ({ ok: false, message: (err as Error)?.message ?? 'Unknown error.' }),
+    );
+    if (!restore.ok) {
+      this.emitRoutingLog(`[AudioRouting] Could not restore Spotify audio: ${restore.message}`);
+    }
     this.killChild();
     this.captureActive = false;
     this.clearNowPlaying();
@@ -257,6 +269,18 @@ export class Supervisor {
       batch.push(entry);
     }
     if (batch.length > 0) this.cb.onLog(batch);
+  }
+
+  /**
+   * Push a synthetic log line into the same channel the engine child uses, so
+   * main-process audio-routing outcomes reach the renderer activity feed (which
+   * already turns `[AudioRouting] ...` lines into friendly status messages).
+   */
+  private emitRoutingLog(text: string): void {
+    const entry: LogLine = { ts: Date.now(), level: 'warn', text: this.redact(text) };
+    this.logRing.push(entry);
+    if (this.logRing.length > LOG_RING_SIZE) this.logRing.shift();
+    this.cb.onLog([entry]);
   }
 
   private redact(text: string): string {

@@ -147,7 +147,9 @@ client.on('interactionCreate', (interaction) => {
           try {
             const device = await spotify.findTargetDevice(userId);
             if (device) targetDeviceName = device.name;
-            await spotify.play(userId, device?.id ?? null);
+            // Rebind Spotify's output onto the just-routed VB-Cable endpoint. A plain
+            // resume would no-op on an already-playing client and stay on speakers.
+            await spotify.resumeOnRoutedDevice(userId, device?.id ?? null);
           } catch (err) {
             console.warn('[Bot] Auto-resume failed (voice still active):', (err as Error).message);
             playError = (err as Error).message;
