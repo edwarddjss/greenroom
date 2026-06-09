@@ -229,35 +229,42 @@ namespace Greenroom {
         throw new Exception("Could not resolve the audio device to use.");
       }
 
-      int changed = 0;
+      int processChanged = 0;
       string lastError = null;
       foreach (Process proc in spotify) {
         try {
-          if (SetPersistedEndpoint(proc.Id, deviceId)) changed++;
+          if (SetPersistedEndpoint(proc.Id, deviceId)) processChanged++;
         } catch (Exception ex) {
           lastError = ex.Message;
         }
       }
 
-      if (changed == 0) {
-        changed = ApplySpotifyRegistryOutput(targetDevice);
-        if (changed == 0) {
-          if (spotify.Length == 0) return action == "route"
-            ? "Spotify is not running, so audio routing was skipped."
-            : "Spotify is not running, so audio restore was skipped.";
-          throw new Exception(lastError ?? "Windows rejected the Spotify audio route.");
-        }
+      int registryChanged = ApplySpotifyRegistryOutput(targetDevice);
+      int verifiedProcesses = CountPersistedEndpointMatches(spotify, deviceId);
+      bool registryVerified = IsSameDevice(ReadSpotifyRegistryOutput(), targetDevice);
+
+      if (processChanged == 0 && registryChanged == 0) {
+        if (spotify.Length == 0) return action == "route"
+          ? "Spotify is not running, so audio routing was skipped."
+          : "Spotify is not running, so audio restore was skipped.";
+        throw new Exception(lastError ?? "Windows rejected the Spotify audio route.");
+      }
+
+      if (verifiedProcesses == 0 && !registryVerified) {
+        throw new Exception("Windows accepted the Spotify audio route, but did not confirm the new output device.");
       }
 
       return action == "route"
-        ? "Spotify audio is routed to Greenroom."
-        : "Spotify audio was restored.";
+        ? "Spotify audio is routed to Greenroom. " + RouteSummary(processChanged, registryChanged, verifiedProcesses, registryVerified)
+        : "Spotify audio was restored. " + RouteSummary(processChanged, registryChanged, verifiedProcesses, registryVerified);
     }
 
     private static DeviceInfo FindRenderDevice(string containsName) {
+      DeviceInfo fallback = null;
       using (RegistryKey render = Registry.LocalMachine.OpenSubKey(RenderDevicesKey)) {
         if (render == null) return null;
         foreach (string childName in render.GetSubKeyNames()) {
+          using (RegistryKey device = render.OpenSubKey(childName))
           using (RegistryKey props = render.OpenSubKey(childName + @"\Properties")) {
             if (props == null) continue;
             string friendlyName =
@@ -266,11 +273,13 @@ namespace Greenroom {
               "";
             if (friendlyName.IndexOf(containsName, StringComparison.OrdinalIgnoreCase) < 0) continue;
 
-            return DeviceInfoFromRegistry(childName, props);
+            DeviceInfo info = DeviceInfoFromRegistry(childName, props);
+            if (IsActiveDevice(device)) return info;
+            if (fallback == null) fallback = info;
           }
         }
       }
-      return null;
+      return fallback;
     }
 
     private static DeviceInfo GetDefaultRenderDevice() {
@@ -307,6 +316,17 @@ namespace Greenroom {
       string fullId = NormalizeRenderEndpointId(endpointId);
       string groupId = ReadRegistryString(props.GetValue("{9637b4b9-11ee-4c35-b43c-7b2452c993cc},1"));
       return new DeviceInfo(fullId, groupId);
+    }
+
+    private static bool IsActiveDevice(RegistryKey device) {
+      if (device == null) return false;
+      object raw = device.GetValue("DeviceState");
+      if (raw == null) return true;
+      try {
+        return Convert.ToInt32(raw) == (int)DeviceState.Active;
+      } catch {
+        return true;
+      }
     }
 
     private static string ReadRegistryString(object value) {
@@ -373,6 +393,33 @@ namespace Greenroom {
         }
       }
       return changed;
+    }
+
+    private static int CountPersistedEndpointMatches(Process[] spotify, string deviceId) {
+      int matches = 0;
+      foreach (Process proc in spotify) {
+        try {
+          string persisted = GetPersistedEndpoint(proc.Id);
+          if (!String.IsNullOrWhiteSpace(persisted) && String.Equals(NormalizeRenderEndpointId(persisted), NormalizeRenderEndpointId(deviceId), StringComparison.OrdinalIgnoreCase)) {
+            matches++;
+          }
+        } catch {
+          // best-effort verification
+        }
+      }
+      return matches;
+    }
+
+    private static bool IsSameDevice(DeviceInfo current, DeviceInfo expected) {
+      return current != null &&
+        expected != null &&
+        !String.IsNullOrWhiteSpace(current.FullId) &&
+        !String.IsNullOrWhiteSpace(expected.FullId) &&
+        String.Equals(NormalizeRenderEndpointId(current.FullId), NormalizeRenderEndpointId(expected.FullId), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string RouteSummary(int processChanged, int registryChanged, int verifiedProcesses, bool registryVerified) {
+      return "(Windows confirmed " + verifiedProcesses + " Spotify process route(s), app setting " + (registryVerified ? "updated" : "unchanged") + "; wrote " + processChanged + " process route(s), " + registryChanged + " app setting(s).)";
     }
 
     private static string SerializeDeviceInfo(DeviceInfo device) {
